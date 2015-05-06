@@ -28,20 +28,21 @@ function interpolate (a, b, amt) {
 function parse (c) {
   var color = parseInt(c, 10); // usually NaN, in case we pass in an int for color
   if (typeof c === 'string') {
-    if (c.split('#').length > 1) { // hex format '#ffffff' or '#ffffffff' with alpha
-      var string = c.replace('#', '');
-      if (string.length === 6) string = 'ff' + string; // prepend full alpha if needed
+    var string = c.replace(/ /g, ''); // strip spaces immediately
 
-      color = parseInt(string, 16);
+    if (c.split('#').length > 1) { // hex format '#ffffff' or '#ffffffff' with alpha
+      var hex = string.replace('#', '');
+      if (hex.length === 6) hex = 'ff' + hex; // prepend full alpha if needed
+      color = parseInt(hex, 16);
     }
 
     else if (c.split('rgb(').length > 1) { // rgb format 'rgb(255, 255, 255)'
-      var rgb = c.substring(4, c.length-1).replace(/ /g, '').split(',');
+      var rgb = string.substring(4, string.length-1).split(',');
       color = fromRgb(rgb[0], rgb[1], rgb[2]);
     }
 
     else if (c.split('rgba(').length > 1) { // rgba format 'rgba(255, 255, 255, 0.8)'
-      var rgba = c.substring(5, c.length-1).replace(/ /g, '').split(',');
+      var rgba = string.substring(5, string.length-1).split(',');
       color = fromRgba(rgba[0], rgba[1], rgba[2], Math.floor(rgba[3] * 0xff));
     }
   }

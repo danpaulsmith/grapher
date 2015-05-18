@@ -1,142 +1,300 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Force with d3</title>
-    <meta charset="UTF-8">
-  </head>
-  <body>
-    <style type="text/css">
-      html, body {
-        padding: 0;
-        margin: 0;
-        overflow: hidden;
-        width: 100%;
-        height: 100%;
-      }
-      canvas {
-        width: 100%;
-        height: 100%;
-      }
-    </style>
-    <script type="text/javascript" src="../build/grapher.js"></script>
-    <script type="text/javascript" src="./vendor/d3.js"></script>
-    <script type="text/javascript">
-      // Generate some data
-      var network = {nodes: [], links: []},
-          width = window.innerWidth,
-          height = window.innerHeight,
-          numNodes = 10,
-          numLinks = 30,
-          i;
 
-      for (i = 0; i < numNodes; i++) {
-        network.nodes.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          r: Math.random() * 10 + 5,
-          weight: 1
-        });
-      }
+<head>
+  <title>Force with d3</title>
+  <meta charset="UTF-8">
+</head>
 
-      for (i = 0; i < numLinks; i++) {
-        var from = Math.floor(Math.random() * numNodes),
-            to = Math.floor(Math.random() * numNodes);
-        network.links.push({
-          from: from,
-          to: to,
-          source: network.nodes[from],
-          target: network.nodes[to]
-        });
-      }
+<body>
+  <style type="text/css">
+  html,
+  body {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
 
-      // We create a function that determines whether a click event falls on a node.
-      var getNodeIdAt = function (point) {
-        var node = -1,
-            x = point.x, y = point.y;
+  canvas {
+    width: 100%;
+    height: 100%;
+  }
+  </style>
+  <script type="text/javascript" src="../build/grapher.js"></script>
+  <script type="text/javascript" src="./vendor/d3.js"></script>
+  <script type="text/javascript">
+  d3
+    .json('http://controller02:7574/db/data/transaction/commit')
+    .header("Content-Type", "application/json")
+    .post(JSON.stringify({
+      "statements": [{
+        "statement": "start n=node(205342) match p=shortestPath((n)-[*..15]-(o)) return distinct p limit 10",
+        "resultDataContents": ["row", "graph"],
+        "includeStats": true
+      }]
+    }), function(msg, data) {
+      //console.log('data', data.results[0].data);
+      createGraph(data.results[0].data);
+    });
 
-        network.nodes.every(function (n, i) {
-          var inX = x <= n.x + n.r && x >= n.x - n.r,
-              inY = y <= n.y + n.r && y >= n.y - n.r,
-              found = inX && inY;
-          if (found) node = i;
-          return !found;
-        });
 
-        return node;
+  var createGraph = function(relationships) {
+
+  var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
+  var theme = {
+    'Disease': {
+      colour: '#FF4F69',
+      size: 30
+    },
+    'Chemical': {
+      colour: '#65D35B',
+      size: 10
+    },
+    'Gene': {
+      colour: '#6693FF',
+      size: 15
+    },
+    'Chebi': {
+      colour: '#75FFB3',
+      size: 10
+    },
+    'GOTerm': {
+      colour: '#FFEDFA',
+      size: 10
+    },
+    'COTerm': {
+      colour: '#FFEAE1',
+      size: 10
+    },
+    'Pathway': {
+      colour: '#694AFF',
+      size: 15
+    }
+  };
+  // Generate some data
+
+  var nodeMap = {},
+    relMap = {},
+    network = {nodes: [], links: []},
+    width = window.innerWidth,
+    height = window.innerHeight,
+    nodeCount = 0;
+
+    for (var i = relationships.length - 1; i >= 0; i--) {
+      var graph = relationships[i].graph;
+
+      for (var j = relationships[i].graph.nodes.length - 1; j >= 0; j--) {
+        var node = relationships[i].graph.nodes[j];
+        if (!nodeMap[node.id]) {
+          nodeMap[node.id] = node
+          nodeMap[node.id].grapherIndex = nodeCount;
+          nodeCount++;
+          network.nodes.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            r: theme[nodeMap[node.id].labels[0]].size,
+            weight: 1,
+            color: theme[nodeMap[node.id].labels[0]].colour
+          });
+        }
       };
 
-      // Helper function for offsets.
-      function getOffset (e) {
-        if (e.offsetX) return {x: e.offsetX, y: e.offsetY};
-        var rect = e.target.getBoundingClientRect();
-        var x = e.clientX - rect.left,
-            y = e.clientY - rect.top;
-        return {x: x, y: y};
+      for (var j = relationships[i].graph.relationships.length - 1; j >= 0; j--) {
+        var rel = relationships[i].graph.relationships[j];
+        if (!relMap[rel.id]) {
+          relMap[rel.id] = rel;
+          var from = nodeMap[relMap[rel.id].startNode].grapherIndex,
+            to = nodeMap[relMap[rel.id].endNode].grapherIndex;
+          network.links.push({
+            from: from,
+            to: to,
+            source: network.nodes[from],
+            target: network.nodes[to],
+            color: network.nodes[from].color
+          });
+        }
       };
 
-      // Create a grapher instance (width, height, options)
-      var grapher = new Grapher({
-        data: network
+      // if (!nodeMap[graph.nodes[1].id]) {
+      //   nodeMap[graph.nodes[1].id] = graph.nodes[1];
+      //   nodeMap[graph.nodes[1].id].grapherIndex = nodeCount;
+      //   nodeCount++;
+      //   network.nodes.push({
+      //     x: Math.random() * width,
+      //     y: Math.random() * height,
+      //     r: theme[nodeMap[graph.nodes[1].id].labels[0]].size,
+      //     weight: 1,
+      //     color: theme[nodeMap[graph.nodes[1].id].labels[0]].colour
+      //   })
+      // }
+      // if (!relMap[graph.relationships[0].id]) {
+      //   relMap[graph.relationships[0].id] = graph.relationships[0];
+      //   var from = nodeMap[parseInt(relMap[graph.relationships[0].id].startNode)].grapherIndex,
+      //     to = nodeMap[parseInt(relMap[graph.relationships[0].id].endNode)].grapherIndex;
+      //   network.links.push({
+      //     from: from,
+      //     to: to,
+      //     source: network.nodes[from],
+      //     target: network.nodes[to],
+      //     color: '#CCCCCC'
+      //   });
+      // }
+    };
+
+    // console.log('nodeMap', nodeMap);
+    // console.log('relMap', relMap);
+    // console.log('network', network);
+
+
+    // for (i = 0; i < numNodes; i++) {
+    //   network.nodes.push({
+    //     x: Math.random() * width,
+    //     y: Math.random() * height,
+    //     r: Math.random() * 10 + 5,
+    //     weight: 1,
+    //     color: palette[Math.floor(Math.random() * palette.length)]
+    //   });
+    // }
+
+    // for (i = 0; i < numLinks; i++) {
+    //   var from = Math.floor(Math.random() * numNodes),
+    //     to = Math.floor(Math.random() * numNodes);
+    //   network.links.push({
+    //     from: from,
+    //     to: to,
+    //     source: network.nodes[from],
+    //     target: network.nodes[to]
+    //   });
+    // }
+
+    // We create a function that determines whether a click event falls on a node.
+    var getNodeIdAt = function(point) {
+      var node = -1,
+        x = point.x,
+        y = point.y;
+
+      network.nodes.every(function(n, i) {
+        var inX = x <= n.x + n.r && x >= n.x - n.r,
+          inY = y <= n.y + n.r && y >= n.y - n.r,
+          found = inX && inY;
+        if (found) node = i;
+        return !found;
       });
 
-      // Variable to keep track of the node we're dragging and the current offset
-      var dragging = null,
-          offset = null;
+      return node;
+    };
 
-
-      // onTick gets called on each tick of D3's force
-      var onTick = function () {
-        if (dragging && offset) {
-          // update the node's position here so it's sticky
-          dragging.node.x = offset.x;
-          dragging.node.y = offset.y;
-        }
-        grapher.update(); // update the grapher
+    // Helper function for offsets.
+    function getOffset(e) {
+      if (e.offsetX) return {
+        x: e.offsetX,
+        y: e.offsetY
       };
+      var rect = e.target.getBoundingClientRect();
+      var x = e.clientX - rect.left,
+        y = e.clientY - rect.top;
+      return {
+        x: x,
+        y: y
+      };
+    };
 
-      // Setup D3's force layout
-      var force = d3.layout.force()
-          .nodes(network.nodes)
-          .links(network.links)
-          .size([width, height])
-          .on('tick', onTick)
-          .charge(-5000)
-          .gravity(0.005)
-          .linkStrength(0.2)
-          .linkDistance(100)
-          .friction(0.02)
-          .start();
+    // Create a grapher instance (width, height, options)
+    var grapher = new Grapher({
+      data: network
+    });
 
-      // On mousedown, grab the node that was clicked.
-      grapher.on('mousedown', function (e) {
-        var eOffset = getOffset(e);
-        var point = grapher.getDataPosition(eOffset);
-        var nodeId = getNodeIdAt(point);
-        if (nodeId > -1) {
-          dragging = {node: network.nodes[nodeId], id: nodeId};
-          offset = point;
-        }
-        else dragging = offset = null;
-      });
+    // Variable to keep track of the node we're dragging and the current offset
+    var dragging = null,
+      offset = null;
 
-      // When the user moves the mouse, we update the node's position
-      grapher.on('mousemove', function (e) {
-        var eOffset = getOffset(e);
-        var point = grapher.getDataPosition(eOffset);
-        if (dragging) {
-          offset = point;
-          force.alpha(1); // restart the force graph
-        }
-      });
 
-      // Finally when the user lets go of the mouse, we stop dragging
-      grapher.on('mouseup', function (e) { dragging = offset = null; });
+    // onTick gets called on each tick of D3's force
+    var onTick = function() {
+      if (dragging && offset) {
+        // update the node's position here so it's sticky
+        dragging.node.x = offset.x;
+        dragging.node.y = offset.y;
+      }
+      grapher.update(); // update the grapher
+    };
 
-      // Append the grapher's view onto the page
-      document.body.appendChild(grapher.canvas);
+    // Setup D3's force layout
+    var force = d3.layout.force()
+      .nodes(network.nodes)
+      .links(network.links)
+      .size([width, height])
+      .on('tick', onTick)
+      .charge(-5000)
+      .gravity(0.005)
+      .linkStrength(0.2)
+      .linkDistance(100)
+      .friction(0.02)
+      .start();
 
-      // Render the graph using play. This will call render in a requestAnimationFrame loop.
-      grapher.play();
-    </script>
-  </body>
+    // force.stop();
+
+    // On mousedown, grab the node that was clicked.
+    grapher.on('mousedown', function(e) {
+      var eOffset = getOffset(e);
+      var point = grapher.getDataPosition(eOffset);
+      var nodeId = getNodeIdAt(point);
+      if (nodeId > -1) {
+        dragging = {
+          node: network.nodes[nodeId],
+          id: nodeId
+        };
+        offset = point;
+      } else dragging = offset = null;
+      grapher.render();
+    });
+
+    // When the user moves the mouse, we update the node's position
+    grapher.on('mousemove', function(e) {
+      var eOffset = getOffset(e);
+      var point = grapher.getDataPosition(eOffset);
+      if (dragging) {
+        offset = point;
+        force.alpha(1); // restart the force graph
+      }
+      grapher.render();
+    });
+
+    // Finally when the user lets go of the mouse, we stop dragging
+    grapher.on('mouseup', function(e) {
+      dragging = offset = null;
+    });
+
+
+    // Setup transforms with the mousewheel event
+    grapher.on('wheel', function(e) {
+      var offset = getOffset(e),
+        transform = grapher.transform(),
+        delta = e.deltaY / 5000,
+        fromCenterX = offset.x - width / 2;
+      fromCenterY = offset.y - height / 2;
+
+      transform.scale = transform.scale + delta;
+      transform.translate = [
+        transform.translate[0] + fromCenterX * delta,
+        transform.translate[1] + fromCenterY * delta,
+      ];
+
+      // Set the new transform
+      grapher.transform(transform);
+      // Render the graph
+      grapher.render();
+    });
+    // Append the grapher's view onto the page
+    document.body.appendChild(grapher.canvas);
+
+    // Render the graph using play. This will call render in a requestAnimationFrame loop.
+    grapher.play();
+    // grapher.render();
+  };
+  </script>
+</body>
+
 </html>

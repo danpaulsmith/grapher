@@ -19,16 +19,19 @@ canvas {
   width: 100%;
   height: 100%;
 }
+
 #status {
-    bottom: 0;
-    left: 25px;
-    position: fixed;
+  bottom: 0;
+  left: 25px;
+  position: fixed;
 }
+
 #query {
   position: fixed;
   top: 50px;
   left: 25px;
 }
+
 #textQuery {
   font-size: 18px;
   min-height: 100px;
@@ -36,66 +39,73 @@ canvas {
   padding: 10px;
   width: 100%;
 }
+
 .running {
   display: none;
 }
+
 .paused {
   display: none;
 }
+
 .three-quarters-loader {
-    display: block !important;
-    margin: 15px auto;
+  display: block !important;
+  margin: 15px auto;
+}
+
+@-moz-keyframes three-quarters-loader {
+  0% {
+    -moz-transform: rotate(0deg);
+    transform: rotate(0deg);
   }
-  @-moz-keyframes three-quarters-loader {
-    0% {
-      -moz-transform: rotate(0deg);
-      transform: rotate(0deg);
-    }
-    100% {
-      -moz-transform: rotate(360deg);
-      transform: rotate(360deg);
-    }
+  100% {
+    -moz-transform: rotate(360deg);
+    transform: rotate(360deg);
   }
-  @-webkit-keyframes three-quarters-loader {
-    0% {
-      -webkit-transform: rotate(0deg);
-      transform: rotate(0deg);
-    }
-    100% {
-      -webkit-transform: rotate(360deg);
-      transform: rotate(360deg);
-    }
+}
+
+@-webkit-keyframes three-quarters-loader {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
   }
-  @keyframes three-quarters-loader {
-    0% {
-      -moz-transform: rotate(0deg);
-      -ms-transform: rotate(0deg);
-      -webkit-transform: rotate(0deg);
-      transform: rotate(0deg);
-    }
-    100% {
-      -moz-transform: rotate(360deg);
-      -ms-transform: rotate(360deg);
-      -webkit-transform: rotate(360deg);
-      transform: rotate(360deg);
-    }
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
   }
-  /* :not(:required) hides this rule from IE9 and below */
-  .three-quarters-loader:not(:required) {
-    -moz-animation: three-quarters-loader 1250ms infinite linear;
-    -webkit-animation: three-quarters-loader 1250ms infinite linear;
-    animation: three-quarters-loader 1250ms infinite linear;
-    border: 8px solid #38e;
-    border-right-color: transparent;
-    border-radius: 16px;
-    box-sizing: border-box;
-    display: inline-block;
-    position: relative;
-    overflow: hidden;
-    text-indent: -9999px;
-    width: 32px;
-    height: 32px;
+}
+
+@keyframes three-quarters-loader {
+  0% {
+    -moz-transform: rotate(0deg);
+    -ms-transform: rotate(0deg);
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
   }
+  100% {
+    -moz-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+/* :not(:required) hides this rule from IE9 and below */
+
+.three-quarters-loader:not(:required) {
+  -moz-animation: three-quarters-loader 1250ms infinite linear;
+  -webkit-animation: three-quarters-loader 1250ms infinite linear;
+  animation: three-quarters-loader 1250ms infinite linear;
+  border: 8px solid #38e;
+  border-right-color: transparent;
+  border-radius: 16px;
+  box-sizing: border-box;
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  text-indent: -9999px;
+  width: 32px;
+  height: 32px;
+}
 </style>
 
 <body>
@@ -110,6 +120,7 @@ canvas {
     <textarea id="textQuery">start n=node(204525) match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 50</textarea>
     <button type="submit">Go</button>
   </form>
+  <span class="label"></span>
   <canvas id="graph"></canvas>
   <script type="text/javascript" src="../build/grapher.js"></script>
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
@@ -117,7 +128,49 @@ canvas {
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
   <script type="text/javascript" src="./vendor/d3.js"></script>
   <script type="text/javascript">
+  var nodeMap = {},
+    relMap = {},
+    network = {
+      nodes: [],
+      links: []
+    },
+    width = window.innerWidth,
+    height = window.innerHeight,
+    nodeCount = 0;
 
+  var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
+  var theme = {
+    'Disease': {
+      colour: '#FF4F69',
+      size: 30
+    },
+    'Chemical': {
+      colour: '#65D35B',
+      size: 15
+    },
+    'Gene': {
+      colour: '#6693FF',
+      size: 25
+    },
+    'Chebi': {
+      colour: '#75FFB3',
+      size: 15
+    },
+    'GOTerm': {
+      colour: '#FFEDFA',
+      size: 10
+    },
+    'COTerm': {
+      colour: '#FFEAE1',
+      size: 10
+    },
+    'Pathway': {
+      colour: '#694AFF',
+      size: 50
+    }
+  };
+
+  d3.select('#status').style('display', 'none');
   d3.select('#center').on('click', function() {
     grapher.center([Math.floor(Math.random() * network.nodes.length)]);
     grapher.render();
@@ -134,76 +187,55 @@ canvas {
   });
 
   var executeQuery = function() {
+    d3.select('#status').style('display', 'block');
     d3
-    .json('http://controller02:7574/db/data/transaction/commit')
-    .header("Content-Type", "application/json")
-    .post(JSON.stringify({
-      "statements": [{
-        "statement": document.getElementById("textQuery").value,
-        "resultDataContents": ["row", "graph"],
-        "includeStats": true
-      }]
-    }), function(msg, data) {
-      createGraph(data.results[0].data);
-    });
+      .json('http://controller02:7574/db/data/transaction/commit')
+      .header("Content-Type", "application/json")
+      .post(JSON.stringify({
+        "statements": [{
+          "statement": document.getElementById("textQuery").value,
+          "resultDataContents": ["row", "graph"],
+          "includeStats": true
+        }]
+      }), function(msg, data) {
+        createGraph(data.results[0].data);
+      });
+    return false;
+  };
+
+  var loadNodesConnections = function(id) {
+    d3.select('#status').style('display', 'block');
+    d3
+      .json('http://controller02:7574/db/data/transaction/commit')
+      .header("Content-Type", "application/json")
+      .post(JSON.stringify({
+        "statements": [{
+          "statement": 'start n=node(' + id + ') match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 50',
+          "resultDataContents": ["row", "graph"],
+          "includeStats": true
+        }]
+      }), function(msg, data) {
+        var newNodesAndLinks = prepareData(data.results[0].data);
+        network.nodes = network.nodes.concat(newNodesAndLinks.nodes);
+        network.links = network.links.concat(newNodesAndLinks.links);
+        createGraph(network);
+      });
     return false;
   };
 
   var clearGraph = function() {
-    if(window.grapher) {
+    if (window.grapher) {
       // window.grapher.initialize(window.grapher);
       // var ctx = grapher.canvas.getContext('webgl');
       // ctx.clearRect(0, 0, grapher.canvas.width, grapher.canvas.height);
     }
   };
 
-  var createGraph = function(relationships) {
-
-    clearGraph();
-
-    var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
-    var theme = {
-      'Disease': {
-        colour: '#FF4F69',
-        size: 30
-      },
-      'Chemical': {
-        colour: '#65D35B',
-        size: 15
-      },
-      'Gene': {
-        colour: '#6693FF',
-        size: 25
-      },
-      'Chebi': {
-        colour: '#75FFB3',
-        size: 15
-      },
-      'GOTerm': {
-        colour: '#FFEDFA',
-        size: 10
-      },
-      'COTerm': {
-        colour: '#FFEAE1',
-        size: 10
-      },
-      'Pathway': {
-        colour: '#694AFF',
-        size: 50
-      }
+  var prepareData = function(relationships) {
+    var nodesAndLinks = {
+      nodes: [],
+      links: []
     };
-    // Generate some data
-
-    var nodeMap = {},
-      relMap = {},
-      network = {
-        nodes: [],
-        links: []
-      },
-      width = window.innerWidth,
-      height = window.innerHeight,
-      nodeCount = 0;
-
     for (var i = relationships.length - 1; i >= 0; i--) {
       var graph = relationships[i].graph;
 
@@ -217,10 +249,15 @@ canvas {
             r: theme[label].size,
             weight: 1,
             color: theme[label].colour,
-            grapherIndex: nodeCount
+            grapherIndex: nodeCount,
+            properties: {
+              label: label,
+              name: node.properties.name,
+              id: node.id
+            }
           };
           nodeCount++;
-          network.nodes.push(nodeMap[node.id]);
+          nodesAndLinks.nodes.push(nodeMap[node.id]);
         }
       }
 
@@ -230,16 +267,22 @@ canvas {
           relMap[rel.id] = rel;
           var from = nodeMap[relMap[rel.id].startNode].grapherIndex,
             to = nodeMap[relMap[rel.id].endNode].grapherIndex;
-          network.links.push({
+          nodesAndLinks.links.push({
             from: from,
             to: to,
-            source: network.nodes[from],
-            target: network.nodes[to],
-            color: '#EEEEEE'//network.nodes[from].color
+            source: nodesAndLinks.nodes[from],
+            target: nodesAndLinks.nodes[to],
+            color: '#EEEEEE' //nodesAndLinks.nodes[from].color
           });
         }
       }
     }
+    return nodesAndLinks;
+  };
+
+  var createGraph = function(network) {
+
+    clearGraph();
 
     // Helper function for offsets.
     function getOffset(e) {
@@ -268,7 +311,8 @@ canvas {
       panning = null,
       mouseDown = false,
       mouseDownPoint,
-      mouseDownDataPoint;
+      mouseDownDataPoint,
+      hoveredNode = null;
 
     function onMouseDown(e) {
       mouseDownPoint = getOffset(e);
@@ -294,9 +338,29 @@ canvas {
       var eOffset = getOffset(e);
       var point = grapher.getDataPosition(eOffset);
 
-      if(!mouseDown) {
+      if (!mouseDown) {
         // check hovering
         var nodeId = grapher.target(point);
+        if (nodeId > -1) {
+          hoveredNode = network.nodes[nodeId];
+          if (!hoveredNode.oldColor) {
+            document.body.style.cursor = 'pointer';
+            hoveredNode.oldColor = hoveredNode.color;
+            hoveredNode.color = '#eeeeee';
+            grapher.render();
+            grapher.update();
+          }
+        } else if (hoveredNode) {
+          document.body.style.cursor = 'auto';
+          hoveredNode.color = hoveredNode.oldColor;
+          delete hoveredNode.oldColor;
+          hoveredNode = null;
+          grapher.render();
+          grapher.update();
+        } else {
+          grapher.render();
+          grapher.update();
+        }
       }
 
       if (dragging) {
@@ -304,7 +368,8 @@ canvas {
         force.alpha(1);
         grapher.render();
       } else if (panning) {
-        var translate = grapher.translate(), dragOffset = getOffset(e);
+        var translate = grapher.translate(),
+          dragOffset = getOffset(e);
         translate[0] += (dragOffset.x - mouseDownPoint.x);
         translate[1] += (dragOffset.y - mouseDownPoint.y);
         mouseDownPoint = dragOffset;
@@ -319,6 +384,11 @@ canvas {
         dragging = offset = null;
       } else {
         panning = null;
+      }
+
+      if (hoveredNode) {
+        console.log('clicked node', hoveredNode.id);
+        loadNodesConnections(hoveredNode.properties.id);
       }
       mouseDownPoint = null;
     }
@@ -360,7 +430,7 @@ canvas {
       .friction(0.02)
       .start();
 
-      window.force = force;
+    window.force = force;
 
     // Append the grapher's view onto the page
     document.body.appendChild(grapher.canvas);
@@ -372,7 +442,6 @@ canvas {
 
     return false;
   };
-
   </script>
 </body>
 

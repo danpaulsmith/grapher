@@ -128,15 +128,16 @@ canvas {
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
   <script type="text/javascript" src="./vendor/d3.js"></script>
   <script type="text/javascript">
-  var nodeMap = {},
+  var responseResults,
+    nodeMap = {},
     relMap = {},
-    network = {
-      nodes: [],
-      links: []
-    },
     width = window.innerWidth,
     height = window.innerHeight,
-    nodeCount = 0;
+    nodeCount = 0,
+    graphNetwork = {
+      nodes: [],
+      links: []
+    };
 
   var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
   var theme = {
@@ -172,7 +173,7 @@ canvas {
 
   d3.select('#status').style('display', 'none');
   d3.select('#center').on('click', function() {
-    grapher.center([Math.floor(Math.random() * network.nodes.length)]);
+    grapher.center([Math.floor(Math.random() * graphNetwork.nodes.length)]);
     grapher.render();
   });
   d3.select('#run').on('click', function() {
@@ -198,7 +199,8 @@ canvas {
           "includeStats": true
         }]
       }), function(msg, data) {
-        createGraph(data.results[0].data);
+        responseResults = data.results[0].data;
+        createGraph(prepareData(responseResults));
       });
     return false;
   };
@@ -210,33 +212,28 @@ canvas {
       .header("Content-Type", "application/json")
       .post(JSON.stringify({
         "statements": [{
-          "statement": 'start n=node(' + id + ') match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 50',
+          "statement": 'start n=node(' + id + ') match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 500',
           "resultDataContents": ["row", "graph"],
           "includeStats": true
         }]
       }), function(msg, data) {
-        var newNodesAndLinks = prepareData(data.results[0].data);
-        network.nodes = network.nodes.concat(newNodesAndLinks.nodes);
-        network.links = network.links.concat(newNodesAndLinks.links);
-        createGraph(network);
+        responseResults = responseResults.concat(data.results[0].data);
+        createGraph(prepareData(responseResults));
       });
     return false;
   };
 
   var clearGraph = function() {
-    if (window.grapher) {
-      // window.grapher.initialize(window.grapher);
-      // var ctx = grapher.canvas.getContext('webgl');
-      // ctx.clearRect(0, 0, grapher.canvas.width, grapher.canvas.height);
-    }
+    var grapher = window.grapher;
+    grapher.data({nodes: [], links: []}).update().render();
+    var gl = grapher._getWebGL();
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   };
 
   var prepareData = function(relationships) {
-    var nodesAndLinks = {
-      nodes: [],
-      links: []
-    };
+
     for (var i = relationships.length - 1; i >= 0; i--) {
+
       var graph = relationships[i].graph;
 
       for (var j = relationships[i].graph.nodes.length - 1; j >= 0; j--) {
@@ -257,7 +254,7 @@ canvas {
             }
           };
           nodeCount++;
-          nodesAndLinks.nodes.push(nodeMap[node.id]);
+          graphNetwork.nodes.push(nodeMap[node.id]);
         }
       }
 
@@ -267,178 +264,236 @@ canvas {
           relMap[rel.id] = rel;
           var from = nodeMap[relMap[rel.id].startNode].grapherIndex,
             to = nodeMap[relMap[rel.id].endNode].grapherIndex;
-          nodesAndLinks.links.push({
+          graphNetwork.links.push({
             from: from,
             to: to,
-            source: nodesAndLinks.nodes[from],
-            target: nodesAndLinks.nodes[to],
-            color: '#EEEEEE' //nodesAndLinks.nodes[from].color
+            source: graphNetwork.nodes[from],
+            target: graphNetwork.nodes[to],
+            color: '#eeeeee'//graphNetwork.nodes[from].color
           });
         }
       }
     }
-    return nodesAndLinks;
+    console.log('graphNetwork', graphNetwork);
+    console.log('nodeCount', nodeCount);
+    return graphNetwork;
   };
 
   var createGraph = function(network) {
 
-    clearGraph();
+    console.log('creating graph', network);
+    var grapher;
 
-    // Helper function for offsets.
-    function getOffset(e) {
-      if (e.offsetX) return {
-        x: e.offsetX,
-        y: e.offsetY
+    if(window.grapher) {
+      // re-render with new data
+      clearGraph();
+      grapher = window.grapher;
+      grapher.data(network).update().render();
+      // onTick gets called on each tick of D3's force
+      var onTick = function() {
+        if (dragging && offset) {
+          // update the node's position here so it's sticky
+          dragging.node.x = offset.x;
+          dragging.node.y = offset.y;
+        }
+        force.alpha(1);
+        grapher.update(); // update the grapher
       };
-      var rect = e.target.getBoundingClientRect();
-      var x = e.clientX - rect.left,
-        y = e.clientY - rect.top;
-      return {
-        x: x,
-        y: y
-      };
-    }
 
-    // Create a grapher instance (width, height, options)
-    var grapher = new Grapher({
-      data: network,
-      canvas: document.getElementById('graph')
-    });
+      // Setup D3's force layout
+      var force = window.force;
+      // var nodes = [], links = [];
+      // force.nodes(nodes).links(links);
+      force.nodes(network.nodes).links(network.links);
+      force.start();
+        // .size([width, height])
+        // .on('tick', onTick)
+        // .charge(-10000)
+        // .gravity(0.005)
+        // .linkStrength(0.2)
+        // .linkDistance(100)
+        // .friction(0.02)
+        // .start();
+      // grapher.play();
 
-    // Variable to keep track of the node we're dragging and the current offset
-    var dragging = null,
-      offset = null,
-      panning = null,
-      mouseDown = false,
-      mouseDownPoint,
-      mouseDownDataPoint,
-      hoveredNode = null;
+    } else {
+      // Create a grapher instance (width, height, options)
+      grapher = new Grapher({
+        data: network,
+        canvas: document.getElementById('graph')
+      });
 
-    function onMouseDown(e) {
-      mouseDownPoint = getOffset(e);
-      mouseDownDataPoint = grapher.getDataPosition(mouseDownPoint);
-      mouseDown = true;
-      var nodeId = grapher.target(mouseDownDataPoint);
-      if (nodeId > -1) {
-        dragging = {
-          node: network.nodes[nodeId],
-          id: nodeId
+
+      // Helper function for offsets.
+      function getOffset(e) {
+        if (e.offsetX) return {
+          x: e.offsetX,
+          y: e.offsetY
         };
-        offset = mouseDownDataPoint;
-      } else {
-        mouseDownPoint = getOffset(e);
-        panning = true;
-        dragging = offset = null;
+        var rect = e.target.getBoundingClientRect();
+        var x = e.clientX - rect.left,
+          y = e.clientY - rect.top;
+        return {
+          x: x,
+          y: y
+        };
       }
-      grapher.render();
-    }
 
-    function onMouseMove(e) {
+      // Variable to keep track of the node we're dragging and the current offset
+      var dragging = null,
+        offset = null,
+        panning = null,
+        mouseDown = false,
+        mouseDownPoint,
+        mouseDownDataPoint,
+        hoveredNode = null;
 
-      var eOffset = getOffset(e);
-      var point = grapher.getDataPosition(eOffset);
-
-      if (!mouseDown) {
-        // check hovering
-        var nodeId = grapher.target(point);
+      function onMouseDown(e) {
+        mouseDownPoint = getOffset(e);
+        mouseDownDataPoint = grapher.getDataPosition(mouseDownPoint);
+        mouseDown = true;
+        var nodeId = grapher.target(mouseDownDataPoint);
         if (nodeId > -1) {
-          hoveredNode = network.nodes[nodeId];
-          if (!hoveredNode.oldColor) {
-            document.body.style.cursor = 'pointer';
-            hoveredNode.oldColor = hoveredNode.color;
-            hoveredNode.color = '#eeeeee';
+          dragging = {
+            node: network.nodes[nodeId],
+            id: nodeId
+          };
+          offset = mouseDownDataPoint;
+        } else {
+          mouseDownPoint = getOffset(e);
+          panning = true;
+          dragging = offset = null;
+        }
+        grapher.render();
+      }
+
+      function onMouseMove(e) {
+
+        var eOffset = getOffset(e);
+        var point = grapher.getDataPosition(eOffset);
+        var nodeId = grapher.target(point);
+
+        if (!mouseDown) {
+          if (nodeId > -1) {
+            hoveredNode = network.nodes[nodeId];
+            if (hoveredNode && !hoveredNode.oldColor) {
+              document.body.style.cursor = 'pointer';
+              hoveredNode.oldColor = hoveredNode.color;
+              hoveredNode.color = '#eeeeee';
+              grapher.render();
+              grapher.update();
+            }
+          } else if (hoveredNode) {
+            document.body.style.cursor = 'auto';
+            hoveredNode.color = hoveredNode.oldColor;
+            delete hoveredNode.oldColor;
+            hoveredNode = null;
+            grapher.render();
+            grapher.update();
+          } else {
             grapher.render();
             grapher.update();
           }
-        } else if (hoveredNode) {
-          document.body.style.cursor = 'auto';
-          hoveredNode.color = hoveredNode.oldColor;
-          delete hoveredNode.oldColor;
-          hoveredNode = null;
+        }
+
+        if (dragging) {
+          offset = point;
+          force.alpha(1);
           grapher.render();
-          grapher.update();
-        } else {
+        } else if (panning) {
+          var translate = grapher.translate(),
+            dragOffset = getOffset(e);
+          translate[0] += (dragOffset.x - mouseDownPoint.x);
+          translate[1] += (dragOffset.y - mouseDownPoint.y);
+          mouseDownPoint = dragOffset;
+          grapher.translate(translate);
           grapher.render();
-          grapher.update();
         }
       }
 
-      if (dragging) {
-        offset = point;
+      var clicks = 0;
+      function onMouseUp(e) {
+        clicks++;
+        mouseDown = false;
+        if (dragging) {
+          dragging.node.fixed = true;
+          dragging = offset = null;
+        } else {
+          panning = null;
+        }
+
+        if (hoveredNode) {
+          // if(hoveredNode.fixed) {
+          //   hoveredNode.fixed = false;
+          // }
+          setTimeout(function() {
+            if(clicks === 2) {
+              loadNodesConnections(hoveredNode.properties.id);
+            }
+            clicks = 0;
+          }, 300);
+          // console.log('clicked node', hoveredNode.properties.name);
+          //
+        }
+        mouseDownPoint = null;
+      }
+
+      function onMouseScroll(e) {
+        var center = getOffset(e);
+        var delta = e.deltaY / 2000;
+        // Call zoom with the ratio and center.
+        grapher.zoom(1 - delta, center);
+        // Render the graph
+        grapher.render();
+      }
+
+      // // On mousedown, grab the node that was clicked.
+      // grapher.off('mousedown', onMouseDown);
+      // grapher.off('mousemove', onMouseMove);
+      // grapher.off('mouseup', onMouseUp);
+      // grapher.off('wheel', onMouseScroll);
+
+      grapher.on('mousedown', onMouseDown);
+      grapher.on('mousemove', onMouseMove);
+      grapher.on('mouseup', onMouseUp);
+      grapher.on('wheel', onMouseScroll);
+
+
+
+      // onTick gets called on each tick of D3's force
+      var onTick = function() {
+        if (dragging && offset) {
+          // update the node's position here so it's sticky
+          dragging.node.x = offset.x;
+          dragging.node.y = offset.y;
+        }
         force.alpha(1);
-        grapher.render();
-      } else if (panning) {
-        var translate = grapher.translate(),
-          dragOffset = getOffset(e);
-        translate[0] += (dragOffset.x - mouseDownPoint.x);
-        translate[1] += (dragOffset.y - mouseDownPoint.y);
-        mouseDownPoint = dragOffset;
-        grapher.translate(translate);
-        grapher.render();
-      }
+        grapher.update(); // update the grapher
+      };
+
+      // Setup D3's force layout
+      var force = d3.layout.force()
+        .nodes(network.nodes)
+        .links(network.links)
+        .size([width, height])
+        .on('tick', onTick)
+        .charge(-5000)
+        .gravity(0.005)
+        .linkStrength(0.2)
+        .linkDistance(100)
+        .friction(0.01)
+        .start();
+
+      window.force = force;
+
+      // Append the grapher's view onto the page
+      document.body.appendChild(grapher.canvas);
+
+      // Render the graph using play. This will call render in a requestAnimationFrame loop.
+      grapher.play();
+      // grapher.render();
+      window.grapher = grapher;
     }
-
-    function onMouseUp(e) {
-      mouseDown = false;
-      if (dragging) {
-        dragging = offset = null;
-      } else {
-        panning = null;
-      }
-
-      if (hoveredNode) {
-        console.log('clicked node', hoveredNode.id);
-        loadNodesConnections(hoveredNode.properties.id);
-      }
-      mouseDownPoint = null;
-    }
-
-    // On mousedown, grab the node that was clicked.
-    grapher.on('mousedown', onMouseDown);
-    grapher.on('mousemove', onMouseMove);
-    grapher.on('mouseup', onMouseUp);
-    grapher.on('wheel', function(e) {
-      var center = getOffset(e);
-      var delta = e.deltaY / 2000;
-      // Call zoom with the ratio and center.
-      grapher.zoom(1 - delta, center);
-      // Render the graph
-      grapher.render();
-    });
-
-    // onTick gets called on each tick of D3's force
-    var onTick = function() {
-      if (dragging && offset) {
-        // update the node's position here so it's sticky
-        dragging.node.x = offset.x;
-        dragging.node.y = offset.y;
-      }
-      force.alpha(1);
-      grapher.update(); // update the grapher
-    };
-
-    // Setup D3's force layout
-    var force = d3.layout.force()
-      .nodes(network.nodes)
-      .links(network.links)
-      .size([width, height])
-      .on('tick', onTick)
-      .charge(-10000)
-      .gravity(0.005)
-      .linkStrength(0.2)
-      .linkDistance(100)
-      .friction(0.02)
-      .start();
-
-    window.force = force;
-
-    // Append the grapher's view onto the page
-    document.body.appendChild(grapher.canvas);
-
-    // Render the graph using play. This will call render in a requestAnimationFrame loop.
-    grapher.play();
-    // grapher.render();
-    window.grapher = grapher;
 
     return false;
   };

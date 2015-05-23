@@ -5,24 +5,30 @@
   <title>Force with d3</title>
   <meta charset="UTF-8">
 </head>
+<style type="text/css">
+html,
+body {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+}
+</style>
 
 <body>
-  <style type="text/css">
-  html,
-  body {
-    padding: 0;
-    margin: 0;
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
-  }
-
-  canvas {
-    width: 100%;
-    height: 100%;
-  }
-  </style>
+  <button id="center">Center random node</button>
+  <button id="run">Run layout</button>
+  <button id="pause">Pause layout</button>
   <script type="text/javascript" src="../build/grapher.js"></script>
+  <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
+  <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-target/master/target-min.js"></script>
+  <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
   <script type="text/javascript" src="./vendor/d3.js"></script>
   <script type="text/javascript">
   d3
@@ -30,7 +36,7 @@
     .header("Content-Type", "application/json")
     .post(JSON.stringify({
       "statements": [{
-        "statement": "start n=node(205342) match p=shortestPath((n)-[*..15]-(o)) return distinct p limit 10",
+        "statement": "start n=node(20455) match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 100",
         "resultDataContents": ["row", "graph"],
         "includeStats": true
       }]
@@ -42,45 +48,48 @@
 
   var createGraph = function(relationships) {
 
-  var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
-  var theme = {
-    'Disease': {
-      colour: '#FF4F69',
-      size: 30
-    },
-    'Chemical': {
-      colour: '#65D35B',
-      size: 10
-    },
-    'Gene': {
-      colour: '#6693FF',
-      size: 15
-    },
-    'Chebi': {
-      colour: '#75FFB3',
-      size: 10
-    },
-    'GOTerm': {
-      colour: '#FFEDFA',
-      size: 10
-    },
-    'COTerm': {
-      colour: '#FFEAE1',
-      size: 10
-    },
-    'Pathway': {
-      colour: '#694AFF',
-      size: 15
-    }
-  };
-  // Generate some data
+    var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
+    var theme = {
+      'Disease': {
+        colour: '#FF4F69',
+        size: 30
+      },
+      'Chemical': {
+        colour: '#65D35B',
+        size: 15
+      },
+      'Gene': {
+        colour: '#6693FF',
+        size: 25
+      },
+      'Chebi': {
+        colour: '#75FFB3',
+        size: 15
+      },
+      'GOTerm': {
+        colour: '#FFEDFA',
+        size: 10
+      },
+      'COTerm': {
+        colour: '#FFEAE1',
+        size: 10
+      },
+      'Pathway': {
+        colour: '#694AFF',
+        size: 50
+      }
+    };
+    // Generate some data
 
-  var nodeMap = {},
-    relMap = {},
-    network = {nodes: [], links: []},
-    width = window.innerWidth,
-    height = window.innerHeight,
-    nodeCount = 0;
+    var nodeMap = {},
+      relMap = {},
+      network = {
+        nodes: [],
+        links: []
+      },
+      width = window.innerWidth,
+      height = window.innerHeight,
+      nodeCount = 0;
 
     for (var i = relationships.length - 1; i >= 0; i--) {
       var graph = relationships[i].graph;
@@ -88,7 +97,7 @@
       for (var j = relationships[i].graph.nodes.length - 1; j >= 0; j--) {
         var node = relationships[i].graph.nodes[j];
         if (!nodeMap[node.id]) {
-          nodeMap[node.id] = node
+          nodeMap[node.id] = node;
           nodeMap[node.id].grapherIndex = nodeCount;
           nodeCount++;
           network.nodes.push({
@@ -99,7 +108,7 @@
             color: theme[nodeMap[node.id].labels[0]].colour
           });
         }
-      };
+      }
 
       for (var j = relationships[i].graph.relationships.length - 1; j >= 0; j--) {
         var rel = relationships[i].graph.relationships[j];
@@ -115,76 +124,8 @@
             color: network.nodes[from].color
           });
         }
-      };
-
-      // if (!nodeMap[graph.nodes[1].id]) {
-      //   nodeMap[graph.nodes[1].id] = graph.nodes[1];
-      //   nodeMap[graph.nodes[1].id].grapherIndex = nodeCount;
-      //   nodeCount++;
-      //   network.nodes.push({
-      //     x: Math.random() * width,
-      //     y: Math.random() * height,
-      //     r: theme[nodeMap[graph.nodes[1].id].labels[0]].size,
-      //     weight: 1,
-      //     color: theme[nodeMap[graph.nodes[1].id].labels[0]].colour
-      //   })
-      // }
-      // if (!relMap[graph.relationships[0].id]) {
-      //   relMap[graph.relationships[0].id] = graph.relationships[0];
-      //   var from = nodeMap[parseInt(relMap[graph.relationships[0].id].startNode)].grapherIndex,
-      //     to = nodeMap[parseInt(relMap[graph.relationships[0].id].endNode)].grapherIndex;
-      //   network.links.push({
-      //     from: from,
-      //     to: to,
-      //     source: network.nodes[from],
-      //     target: network.nodes[to],
-      //     color: '#CCCCCC'
-      //   });
-      // }
-    };
-
-    // console.log('nodeMap', nodeMap);
-    // console.log('relMap', relMap);
-    // console.log('network', network);
-
-
-    // for (i = 0; i < numNodes; i++) {
-    //   network.nodes.push({
-    //     x: Math.random() * width,
-    //     y: Math.random() * height,
-    //     r: Math.random() * 10 + 5,
-    //     weight: 1,
-    //     color: palette[Math.floor(Math.random() * palette.length)]
-    //   });
-    // }
-
-    // for (i = 0; i < numLinks; i++) {
-    //   var from = Math.floor(Math.random() * numNodes),
-    //     to = Math.floor(Math.random() * numNodes);
-    //   network.links.push({
-    //     from: from,
-    //     to: to,
-    //     source: network.nodes[from],
-    //     target: network.nodes[to]
-    //   });
-    // }
-
-    // We create a function that determines whether a click event falls on a node.
-    var getNodeIdAt = function(point) {
-      var node = -1,
-        x = point.x,
-        y = point.y;
-
-      network.nodes.every(function(n, i) {
-        var inX = x <= n.x + n.r && x >= n.x - n.r,
-          inY = y <= n.y + n.r && y >= n.y - n.r,
-          found = inX && inY;
-        if (found) node = i;
-        return !found;
-      });
-
-      return node;
-    };
+      }
+    }
 
     // Helper function for offsets.
     function getOffset(e) {
@@ -199,7 +140,7 @@
         x: x,
         y: y
       };
-    };
+    }
 
     // Create a grapher instance (width, height, options)
     var grapher = new Grapher({
@@ -208,8 +149,79 @@
 
     // Variable to keep track of the node we're dragging and the current offset
     var dragging = null,
-      offset = null;
+      offset = null,
+      panning = null,
+      mouseDown = false,
+      mouseDownPoint,
+      mouseDownDataPoint;
 
+    function onMouseDown(e) {
+      mouseDownPoint = getOffset(e);
+      mouseDownDataPoint = grapher.getDataPosition(mouseDownPoint);
+      mouseDown = true;
+      var nodeId = grapher.target(mouseDownDataPoint);
+      if (nodeId > -1) {
+        dragging = {
+          node: network.nodes[nodeId],
+          id: nodeId
+        };
+        offset = mouseDownDataPoint;
+      } else {
+        mouseDownPoint = getOffset(e);
+        panning = true;
+        dragging = offset = null;
+      }
+      grapher.render();
+    }
+
+    function onMouseMove(e) {
+
+      if(!mouseDown) {
+        return false;
+      }
+
+      if (dragging) {
+        var eOffset = getOffset(e);
+        var point = grapher.getDataPosition(eOffset);
+        if (dragging) {
+          offset = point;
+          force.alpha(1); // restart the force graph
+        } else {
+          var nodeId = grapher.nearest(point)[0];
+        }
+        grapher.render();
+      } else if (panning) {
+          var translate = grapher.translate(),
+            dragOffset = getOffset(e);
+          translate[0] += (dragOffset.x - mouseDownPoint.x);
+          translate[1] += (dragOffset.y - mouseDownPoint.y);
+          mouseDownPoint = dragOffset;
+          grapher.translate(translate);
+      }
+    }
+
+    function onMouseUp(e) {
+      mouseDown = false;
+      if (dragging) {
+        dragging = offset = null;
+      } else {
+        panning = null;
+      }
+      mouseDownPoint = null;
+    }
+
+    // On mousedown, grab the node that was clicked.
+    grapher.on('mousedown', onMouseDown);
+    grapher.on('mousemove', onMouseMove);
+    grapher.on('mouseup', onMouseUp);
+    grapher.on('wheel', function(e) {
+      var center = getOffset(e);
+      var delta = e.deltaY / 2000;
+      // Call zoom with the ratio and center.
+      grapher.zoom(1 - delta, center);
+      // Render the graph
+      grapher.render();
+    });
 
     // onTick gets called on each tick of D3's force
     var onTick = function() {
@@ -218,6 +230,7 @@
         dragging.node.x = offset.x;
         dragging.node.y = offset.y;
       }
+      force.alpha(1);
       grapher.update(); // update the grapher
     };
 
@@ -234,65 +247,27 @@
       .friction(0.02)
       .start();
 
-    // force.stop();
+      window.force = force;
 
-    // On mousedown, grab the node that was clicked.
-    grapher.on('mousedown', function(e) {
-      var eOffset = getOffset(e);
-      var point = grapher.getDataPosition(eOffset);
-      var nodeId = getNodeIdAt(point);
-      if (nodeId > -1) {
-        dragging = {
-          node: network.nodes[nodeId],
-          id: nodeId
-        };
-        offset = point;
-      } else dragging = offset = null;
-      grapher.render();
-    });
-
-    // When the user moves the mouse, we update the node's position
-    grapher.on('mousemove', function(e) {
-      var eOffset = getOffset(e);
-      var point = grapher.getDataPosition(eOffset);
-      if (dragging) {
-        offset = point;
-        force.alpha(1); // restart the force graph
-      }
-      grapher.render();
-    });
-
-    // Finally when the user lets go of the mouse, we stop dragging
-    grapher.on('mouseup', function(e) {
-      dragging = offset = null;
-    });
-
-
-    // Setup transforms with the mousewheel event
-    grapher.on('wheel', function(e) {
-      var offset = getOffset(e),
-        transform = grapher.transform(),
-        delta = e.deltaY / 5000,
-        fromCenterX = offset.x - width / 2;
-      fromCenterY = offset.y - height / 2;
-
-      transform.scale = transform.scale + delta;
-      transform.translate = [
-        transform.translate[0] + fromCenterX * delta,
-        transform.translate[1] + fromCenterY * delta,
-      ];
-
-      // Set the new transform
-      grapher.transform(transform);
-      // Render the graph
-      grapher.render();
-    });
     // Append the grapher's view onto the page
     document.body.appendChild(grapher.canvas);
 
     // Render the graph using play. This will call render in a requestAnimationFrame loop.
     grapher.play();
     // grapher.render();
+    window.grapher = grapher;
+
+    d3.select('#center').on('click', function() {
+      grapher.center([Math.floor(Math.random() * network.nodes.length)]);
+    });
+    d3.select('#run').on('click', function() {
+      force.start();
+      grapher.play();
+    });
+    d3.select('#pause').on('click', function() {
+      force.stop();
+      grapher.pause();
+    });
   };
   </script>
 </body>

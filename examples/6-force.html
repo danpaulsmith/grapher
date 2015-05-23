@@ -19,34 +19,147 @@ canvas {
   width: 100%;
   height: 100%;
 }
+#status {
+    bottom: 0;
+    left: 25px;
+    position: fixed;
+}
+#query {
+  position: fixed;
+  top: 50px;
+  left: 25px;
+}
+#textQuery {
+  font-size: 18px;
+  min-height: 100px;
+  opacity: 0.5;
+  padding: 10px;
+  width: 100%;
+}
+.running {
+  display: none;
+}
+.paused {
+  display: none;
+}
+.three-quarters-loader {
+    display: block !important;
+    margin: 15px auto;
+  }
+  @-moz-keyframes three-quarters-loader {
+    0% {
+      -moz-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -moz-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+  @-webkit-keyframes three-quarters-loader {
+    0% {
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -webkit-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes three-quarters-loader {
+    0% {
+      -moz-transform: rotate(0deg);
+      -ms-transform: rotate(0deg);
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -moz-transform: rotate(360deg);
+      -ms-transform: rotate(360deg);
+      -webkit-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+  /* :not(:required) hides this rule from IE9 and below */
+  .three-quarters-loader:not(:required) {
+    -moz-animation: three-quarters-loader 1250ms infinite linear;
+    -webkit-animation: three-quarters-loader 1250ms infinite linear;
+    animation: three-quarters-loader 1250ms infinite linear;
+    border: 8px solid #38e;
+    border-right-color: transparent;
+    border-radius: 16px;
+    box-sizing: border-box;
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
+    text-indent: -9999px;
+    width: 32px;
+    height: 32px;
+  }
 </style>
 
 <body>
   <button id="center">Center random node</button>
   <button id="run">Run layout</button>
   <button id="pause">Pause layout</button>
+  <div id="status">
+    Layout running...
+    <div class="three-quarters-loader"></div>
+  </div>
+  <form id="query" onsubmit="event.preventDefault(); return executeQuery();">
+    <textarea id="textQuery">start n=node(204525) match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 50</textarea>
+    <button type="submit">Go</button>
+  </form>
+  <canvas id="graph"></canvas>
   <script type="text/javascript" src="../build/grapher.js"></script>
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-target/master/target-min.js"></script>
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
   <script type="text/javascript" src="./vendor/d3.js"></script>
   <script type="text/javascript">
-  d3
+
+  d3.select('#center').on('click', function() {
+    grapher.center([Math.floor(Math.random() * network.nodes.length)]);
+    grapher.render();
+  });
+  d3.select('#run').on('click', function() {
+    force.start();
+    grapher.play();
+    d3.select('#status').style('display', 'block');
+  });
+  d3.select('#pause').on('click', function() {
+    force.stop();
+    grapher.pause();
+    d3.select('#status').style('display', 'none');
+  });
+
+  var executeQuery = function() {
+    d3
     .json('http://controller02:7574/db/data/transaction/commit')
     .header("Content-Type", "application/json")
     .post(JSON.stringify({
       "statements": [{
-        "statement": "start n=node(20455) match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 100",
+        "statement": document.getElementById("textQuery").value,
         "resultDataContents": ["row", "graph"],
         "includeStats": true
       }]
     }), function(msg, data) {
-      //console.log('data', data.results[0].data);
       createGraph(data.results[0].data);
     });
+    return false;
+  };
 
+  var clearGraph = function() {
+    if(window.grapher) {
+      // window.grapher.initialize(window.grapher);
+      // var ctx = grapher.canvas.getContext('webgl');
+      // ctx.clearRect(0, 0, grapher.canvas.width, grapher.canvas.height);
+    }
+  };
 
   var createGraph = function(relationships) {
+
+    clearGraph();
 
     var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
     var theme = {
@@ -97,16 +210,17 @@ canvas {
       for (var j = relationships[i].graph.nodes.length - 1; j >= 0; j--) {
         var node = relationships[i].graph.nodes[j];
         if (!nodeMap[node.id]) {
-          nodeMap[node.id] = node;
-          nodeMap[node.id].grapherIndex = nodeCount;
-          nodeCount++;
-          network.nodes.push({
+          var label = node.labels[0];
+          nodeMap[node.id] = {
             x: Math.random() * width,
             y: Math.random() * height,
-            r: theme[nodeMap[node.id].labels[0]].size,
+            r: theme[label].size,
             weight: 1,
-            color: theme[nodeMap[node.id].labels[0]].colour
-          });
+            color: theme[label].colour,
+            grapherIndex: nodeCount
+          };
+          nodeCount++;
+          network.nodes.push(nodeMap[node.id]);
         }
       }
 
@@ -121,7 +235,7 @@ canvas {
             to: to,
             source: network.nodes[from],
             target: network.nodes[to],
-            color: network.nodes[from].color
+            color: '#EEEEEE'//network.nodes[from].color
           });
         }
       }
@@ -144,7 +258,8 @@ canvas {
 
     // Create a grapher instance (width, height, options)
     var grapher = new Grapher({
-      data: network
+      data: network,
+      canvas: document.getElementById('graph')
     });
 
     // Variable to keep track of the node we're dragging and the current offset
@@ -176,27 +291,25 @@ canvas {
 
     function onMouseMove(e) {
 
+      var eOffset = getOffset(e);
+      var point = grapher.getDataPosition(eOffset);
+
       if(!mouseDown) {
-        return false;
+        // check hovering
+        var nodeId = grapher.target(point);
       }
 
       if (dragging) {
-        var eOffset = getOffset(e);
-        var point = grapher.getDataPosition(eOffset);
-        if (dragging) {
-          offset = point;
-          force.alpha(1); // restart the force graph
-        } else {
-          var nodeId = grapher.nearest(point)[0];
-        }
+        offset = point;
+        force.alpha(1);
         grapher.render();
       } else if (panning) {
-          var translate = grapher.translate(),
-            dragOffset = getOffset(e);
-          translate[0] += (dragOffset.x - mouseDownPoint.x);
-          translate[1] += (dragOffset.y - mouseDownPoint.y);
-          mouseDownPoint = dragOffset;
-          grapher.translate(translate);
+        var translate = grapher.translate(), dragOffset = getOffset(e);
+        translate[0] += (dragOffset.x - mouseDownPoint.x);
+        translate[1] += (dragOffset.y - mouseDownPoint.y);
+        mouseDownPoint = dragOffset;
+        grapher.translate(translate);
+        grapher.render();
       }
     }
 
@@ -240,7 +353,7 @@ canvas {
       .links(network.links)
       .size([width, height])
       .on('tick', onTick)
-      .charge(-5000)
+      .charge(-10000)
       .gravity(0.005)
       .linkStrength(0.2)
       .linkDistance(100)
@@ -257,18 +370,9 @@ canvas {
     // grapher.render();
     window.grapher = grapher;
 
-    d3.select('#center').on('click', function() {
-      grapher.center([Math.floor(Math.random() * network.nodes.length)]);
-    });
-    d3.select('#run').on('click', function() {
-      force.start();
-      grapher.play();
-    });
-    d3.select('#pause').on('click', function() {
-      force.stop();
-      grapher.pause();
-    });
+    return false;
   };
+
   </script>
 </body>
 

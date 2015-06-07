@@ -24,6 +24,7 @@ canvas {
   bottom: 0;
   left: 25px;
   position: fixed;
+  display: none;
 }
 
 #query {
@@ -32,9 +33,14 @@ canvas {
   left: 25px;
 }
 
+#type {
+  font-size: 18px;
+}
+
 #textQuery {
   font-size: 18px;
-  min-height: 100px;
+  /*min-height: 100px;*/
+
   opacity: 0.5;
   padding: 10px;
   width: 100%;
@@ -107,6 +113,10 @@ canvas {
   height: 32px;
 }
 </style>
+<!-- lrp1[anatomicalsystem] OR lrp1[cancer] OR lrp1[cell] OR lrp1[cellularcomponent] OR lrp1[chemical] OR lrp1[condition] OR lrp1[developinganatomicalstructure] OR lrp1[enzyme] OR lrp1[gene] OR lrp1[geneprotein] OR lrp1[immaterialanatomicalentity] OR lrp1[multitissuestructure] OR lrp1[organ] OR lrp1[organismsubidivision] OR lrp1[organismsubstance] OR lrp1[pathologicalformation] OR lrp1[polymer] OR lrp1[protein] OR lrp1[reaction] OR lrp1[species] OR lrp1[tissue]
+
+anatomicalsystem,cancer,cell,cellularcomponent,chemical,condition,developinganatomicalstructure,enzyme,gene,geneprotein,immaterialanatomicalentity,multitissuestructure,organ,organismsubidivision,organismsubstance,pathologicalformation,polymer,protein,reaction,species,tissue
+ -->
 
 <body>
   <button id="center">Center random node</button>
@@ -117,11 +127,42 @@ canvas {
     <div class="three-quarters-loader"></div>
   </div>
   <form id="query" onsubmit="event.preventDefault(); return executeQuery();">
-    <textarea id="textQuery">start n=node(204525) match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 50</textarea>
+    Extract entities of type:
+    <select id="type">
+      <option>anatomicalsystem</option>
+      <option>cancer</option>
+      <option>cell</option>
+      <option>cellularcomponent</option>
+      <option>chemical</option>
+      <option>condition</option>
+      <option>developinganatomicalstructure</option>
+      <option>enzyme</option>
+      <option>gene</option>
+      <option>geneprotein</option>
+      <option>immaterialanatomicalentity</option>
+      <option>multitissuestructure</option>
+      <option>organ</option>
+      <option>organismsubidivision</option>
+      <option>organismsubstance</option>
+      <option>pathologicalformation</option>
+      <option>polymer</option>
+      <option>protein</option>
+      <option>reaction</option>
+      <option>species</option>
+      <option>tissue</option>
+    </select>
+    <input id="textQuery" placeholder="from papers about..." /> Include:
+    <input type="checkbox" class="location" name="location" checked id="title" /> Title
+    <input type="checkbox" class="location" name="location" checked id="abstract" /> Abstract
+    <input type="checkbox" class="location" name="location" checked id="intro" /> Intro
+    <input type="checkbox" class="location" name="location" checked id="discussion" /> Discussion
+    <input type="checkbox" class="location" name="location" checked id="other" /> other
+    <br />
     <button type="submit">Go</button>
   </form>
   <span class="label"></span>
   <canvas id="graph"></canvas>
+  <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
   <script type="text/javascript" src="../build/grapher.js"></script>
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
   <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-target/master/target-min.js"></script>
@@ -139,7 +180,117 @@ canvas {
       links: []
     };
 
-  var palette = ['#f0f9e8', '#bae4bc', '#7bccc4', '#43a2ca', '#0868ac'];
+  var semanticTypes = ['anatomicalsystem', 'cancer', 'cell', 'cellularcomponent', 'chemical', 'condition', 'developinganatomicalstructure', 'enzyme', 'gene', 'geneprotein', 'immaterialanatomicalentity', 'multitissuestructure', 'organ', 'organismsubidivision', 'organismsubstance', 'pathologicalformation', 'polymer', 'protein', 'reaction', 'species', 'tissue'];
+
+  var types = {
+    anatomicalsystem: {
+      colour: '#A187BE'
+    },
+    cancer: {
+      colour: '#8882BE'
+    },
+    cell: {
+      colour: '#8493CA'
+    },
+    cellularcomponent: {
+      colour: '#7EA7D8'
+    },
+    chemical: {
+      colour: '#97F687'
+    },
+    condition: {
+      colour: '#CD4F57'
+    },
+    developinganatomicalstructure: {
+      colour: '#82CA9D'
+    },
+    enzyme: {
+      colour: '#A2D39C'
+    },
+    gene: {
+      colour: '#5174DF'
+    },
+    geneprotein: {
+      colour: '#4D7AFF'
+    },
+    immaterialanatomicalentity: {
+      colour: '#FDC68A'
+    },
+    multitissuestructure: {
+      colour: '#F9AD81'
+    },
+    organ: {
+      colour: '#9edae5'
+    },
+    organismsubidivision: {
+      colour: '#dbdb8d'
+    },
+    organismsubstance: {
+      colour: '#c7c7c7'
+    },
+    pathologicalformation: {
+      colour: '#f7b6d2'
+    },
+    polymer: {
+      colour: '#c49c94'
+    },
+    protein: {
+      colour: '#7EA6FF'
+    },
+    reaction: {
+      colour: '#98df8a'
+    },
+    species: {
+      colour: '#ffbb78'
+    },
+    tissue: {
+      colour: '#aec7e8'
+    }
+  };
+
+    var colours = [
+      '#aec7e8',
+      '#ffbb78',
+      '#98df8a',
+      '#ff9896',
+      '#c5b0d5',
+      '#c49c94',
+      '#f7b6d2',
+      '#c7c7c7',
+      '#dbdb8d',
+      '#9edae5',
+      '#F9AD81',
+      '#FDC68A',
+      '#FFF79A',
+      '#C4DF9B',
+      '#A2D39C',
+      '#82CA9D',
+      '#7BCDC8',
+      '#6ECFF6',
+      '#7EA7D8',
+      '#8493CA',
+      '#8882BE',
+      '#A187BE',
+      '#BC8DBF',
+      '#F49AC2',
+      '#F6989D',
+      '#F26C4F',
+      '#F68E55',
+      '#FBAF5C',
+      '#FFF467',
+      '#ACD372',
+      '#7CC576',
+      '#3BB878',
+      '#1ABBB4',
+      '#00BFF3',
+      '#438CCA',
+      '#5574B9',
+      '#605CA8',
+      '#855FA8',
+      '#A763A8',
+      '#F06EA9',
+      '#F26D7D',
+    ];
   var theme = {
     'Disease': {
       colour: '#FF4F69',
@@ -188,20 +339,176 @@ canvas {
   });
 
   var executeQuery = function() {
+
+    var checkedValues = [];
+    var inputElements = document.getElementsByClassName('location');
+    for (var i = 0; inputElements[i]; ++i) {
+      if (inputElements[i].checked) {
+        checkedValues.push(inputElements[i].id);
+      }
+    }
+    if (inputElements.length === checkedValues.length) {
+      checkedValues = 'all';
+    } else {
+      checkedValues = checkedValues.join(',');
+    }
+    console.log(checkedValues);
+
     d3.select('#status').style('display', 'block');
-    d3
-      .json('http://controller02:7574/db/data/transaction/commit')
-      .header("Content-Type", "application/json")
-      .post(JSON.stringify({
-        "statements": [{
-          "statement": document.getElementById("textQuery").value,
-          "resultDataContents": ["row", "graph"],
-          "includeStats": true
-        }]
-      }), function(msg, data) {
-        responseResults = data.results[0].data;
-        createGraph(prepareData(responseResults));
+
+    var paperMap = {};
+    var entityMap = {};
+    // var nodes = [], edges = [];
+    $.getJSON('lrp1_geneprotein_10.json', function(data) {
+      var papers = data.articleList;
+      var network = prepareData(papers);
+      createGraph(network);
+    });
+
+    var nodeCounter = 0;
+    function prepareData(papers) {
+
+      for (var i = papers.length - 1; i >= 0; i--) {
+        paperMap[papers[i].beaconId] = [];
+        $.each(papers[i].highlightPositions, function(section, highlights) {
+          for (var j = highlights.length - 1; j >= 0; j--) {
+            if(highlights[j].clz !== 'highlight') {
+              if (!entityMap[highlights[j].highlightedText]) {
+                entityMap[highlights[j].highlightedText] = {
+                  count: 0,
+                  papers: [],
+                  nodeIndex: nodeCounter++,
+                  type: highlights[j].clz
+                };
+                paperMap[papers[i].beaconId].push(highlights[j].highlightedText);
+              }
+
+              if(entityMap[highlights[j].highlightedText].papers.indexOf(papers[i].beaconId) < 0) {
+                entityMap[highlights[j].highlightedText].papers.push(papers[i].beaconId);
+              }
+
+              entityMap[highlights[j].highlightedText].count++;
+            } else {
+              // console.log('Found highlight:', highlights[j]);
+            }
+          }
+        });
+      };
+
+      // console.log(paperMap);
+      // console.log(entityMap);
+
+      $.each(entityMap, function(key, val) {
+        graphNetwork.nodes.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: val.count,
+          weight: 1,
+          color: types[val.type].colour || '#000000',
+          nodeIndex: val.nodeIndex,
+          properties: {
+            label: val.type,
+            name: key,
+            id: 'id-' + val.nodeIndex
+          }
+        });
       });
+      // console.log('nodes', graphNetwork.nodes);
+
+      var entities, from, to;
+      $.each(paperMap, function(key, val) {
+        entities = val;
+        // console.log(key, ':', entities);
+        for (var i = 0; i < entities.length; i++) {
+          from = entityMap[entities[i]].nodeIndex;
+          for (var j = i+1; j < entities.length; j++) {
+            to = entityMap[entities[j]].nodeIndex;
+            graphNetwork.links.push({
+              from: from,
+              to: to,
+              source: graphNetwork.nodes[from],
+              target: graphNetwork.nodes[to],
+              color: '#eeeeee' //graphNetwork.nodes[from].color
+            });
+          };
+        };
+        // console.log('links', graphNetwork.links);
+      });
+
+      return graphNetwork;
+    }
+
+    // d3
+    //   .json('http://controller01:5077/api/search')
+    //   .header("Content-Type", "application/json")
+    //   .post(JSON.stringify({
+    //       "searchQuery": document.getElementById("textQuery").value + " ["+document.getElementById("type").value+"]",
+    //       "sortBy": "",
+    //       "sortDirection": "",
+    //       "resultsPerPage": 10,
+    //       "savedSearch": false,
+    //       "updatedDate": 0,
+    //       "createdDate": 0,
+    //       "searchId": "",
+    //       "parentId": "",
+    //       "emailNotification": false,
+    //       "searchName": "",
+    //       "pageNumber": 0,
+    //       "skipSearchAudit": true,
+    //       "highlightFields": checkedValues
+    //     }), function(msg, data) {
+    //     var papers = data.articleList;
+    //     for (var i = papers.length - 1; i >= 0; i--) {
+    //       papers[i]
+    //     };
+    //     createGraph(prepareData(responseResults));
+    //   });
+
+    // $.ajax({
+    //   type: 'POST',
+    //   beforeSend: function (request) {
+    //       request.setRequestHeader('Content-Type', 'application/json');
+    //       request.setRequestHeader('Accept', 'application/json');
+    //       request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    //   },
+    //   url: 'http://controller01:5077/api/search',
+    //   dataType: 'json',
+    //   data: {
+    //     "searchQuery": "lrp1",
+    //     "sortBy": "",
+    //     "sortDirection": "",
+    //     "resultsPerPage": 10,
+    //     "savedSearch": false,
+    //     "updatedDate": 0,
+    //     "createdDate": 0,
+    //     "searchId": "",
+    //     "parentId": "",
+    //     "emailNotification": false,
+    //     "searchName": "",
+    //     "pageNumber": 0,
+    //     "skipSearchAudit": true,
+    //     "highlightFields": ""
+    //   },
+    //   success: function(data) {
+    //     console.log(data);
+    //   },
+    //   error: function() {
+
+    //   }
+    // });
+
+
+
+    // d3
+    //   .json('lrp1_geneprotein.json', function(error, json) {
+    //     console.log(json);
+    //     var papers = JSON.parse(json);
+    //     console.log(papers);
+    //     for (var i = papers.length - 1; i >= 0; i--) {
+    //       papers[i]
+    //     };
+    //     //createGraph(prepareData(responseResults));
+    //   });
     return false;
   };
 
@@ -225,7 +532,10 @@ canvas {
 
   var clearGraph = function() {
     var grapher = window.grapher;
-    grapher.data({nodes: [], links: []}).update().render();
+    grapher.data({
+      nodes: [],
+      links: []
+    }).update().render();
     var gl = grapher._getWebGL();
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   };
@@ -269,7 +579,7 @@ canvas {
             to: to,
             source: graphNetwork.nodes[from],
             target: graphNetwork.nodes[to],
-            color: '#eeeeee'//graphNetwork.nodes[from].color
+            color: '#eeeeee' //graphNetwork.nodes[from].color
           });
         }
       }
@@ -284,7 +594,7 @@ canvas {
     console.log('creating graph', network);
     var grapher;
 
-    if(window.grapher) {
+    if (window.grapher) {
       // re-render with new data
       clearGraph();
       grapher = window.grapher;
@@ -296,7 +606,7 @@ canvas {
           dragging.node.x = offset.x;
           dragging.node.y = offset.y;
         }
-        force.alpha(1);
+        // force.alpha(1);
         grapher.update(); // update the grapher
       };
 
@@ -305,15 +615,15 @@ canvas {
       // var nodes = [], links = [];
       // force.nodes(nodes).links(links);
       force.nodes(network.nodes).links(network.links);
-      force.start();
-        // .size([width, height])
-        // .on('tick', onTick)
-        // .charge(-10000)
-        // .gravity(0.005)
-        // .linkStrength(0.2)
-        // .linkDistance(100)
-        // .friction(0.02)
-        // .start();
+      force
+      .size([width, height])
+      .on('tick', onTick)
+      .charge(-5000)
+      .gravity(0.005)
+      .linkStrength(0.2)
+      .linkDistance(100)
+      .friction(0.02)
+      .start();
       // grapher.play();
 
     } else {
@@ -398,7 +708,7 @@ canvas {
 
         if (dragging) {
           offset = point;
-          force.alpha(1);
+          // force.alpha(1);
           grapher.render();
         } else if (panning) {
           var translate = grapher.translate(),
@@ -412,6 +722,7 @@ canvas {
       }
 
       var clicks = 0;
+
       function onMouseUp(e) {
         clicks++;
         mouseDown = false;
@@ -427,7 +738,7 @@ canvas {
           //   hoveredNode.fixed = false;
           // }
           setTimeout(function() {
-            if(clicks === 2) {
+            if (clicks === 2) {
               loadNodesConnections(hoveredNode.properties.id);
             }
             clicks = 0;
@@ -467,7 +778,7 @@ canvas {
           dragging.node.x = offset.x;
           dragging.node.y = offset.y;
         }
-        force.alpha(1);
+        // force.alpha(1);
         grapher.update(); // update the grapher
       };
 

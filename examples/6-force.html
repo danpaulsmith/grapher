@@ -20,7 +20,7 @@ canvas {
   height: 100%;
 }
 
-#status {
+#status, #loading {
   bottom: 0;
   left: 25px;
   position: fixed;
@@ -31,6 +31,7 @@ canvas {
   position: fixed;
   top: 50px;
   left: 25px;
+  width: 260px;
 }
 
 #type {
@@ -59,6 +60,25 @@ canvas {
   margin: 15px auto;
 }
 
+div.tooltip {
+  position: fixed;
+  display: none;
+  left: 25px;
+  bottom: 25px;
+}
+div.tooltip span {
+  display: block;
+  padding: 5px;
+}
+div.tooltip span.type {
+  font-weight: bold;
+}
+div.tooltip span.name {
+
+}
+div.tooltip span.count {
+
+}
 @-moz-keyframes three-quarters-loader {
   0% {
     -moz-transform: rotate(0deg);
@@ -122,500 +142,546 @@ anatomicalsystem,cancer,cell,cellularcomponent,chemical,condition,developinganat
   <button id="center">Center random node</button>
   <button id="run">Run layout</button>
   <button id="pause">Pause layout</button>
+  <div id="loading">
+    Loading...
+    <div class="three-quarters-loader"></div>
+  </div>
   <div id="status">
     Layout running...
     <div class="three-quarters-loader"></div>
   </div>
-  <form id="query" onsubmit="event.preventDefault(); return executeQuery();">
-    Extract entities of type:
-    <select id="type">
-      <option>anatomicalsystem</option>
-      <option>cancer</option>
-      <option>cell</option>
-      <option>cellularcomponent</option>
-      <option>chemical</option>
-      <option>condition</option>
-      <option>developinganatomicalstructure</option>
-      <option>enzyme</option>
-      <option>gene</option>
-      <option>geneprotein</option>
-      <option>immaterialanatomicalentity</option>
-      <option>multitissuestructure</option>
-      <option>organ</option>
-      <option>organismsubidivision</option>
-      <option>organismsubstance</option>
-      <option>pathologicalformation</option>
-      <option>polymer</option>
-      <option>protein</option>
-      <option>reaction</option>
-      <option>species</option>
-      <option>tissue</option>
-    </select>
-    <input id="textQuery" placeholder="from papers about..." /> Include:
-    <input type="checkbox" class="location" name="location" checked id="title" /> Title
-    <input type="checkbox" class="location" name="location" checked id="abstract" /> Abstract
-    <input type="checkbox" class="location" name="location" checked id="intro" /> Intro
-    <input type="checkbox" class="location" name="location" checked id="discussion" /> Discussion
-    <input type="checkbox" class="location" name="location" checked id="other" /> other
-    <br />
-    <button type="submit">Go</button>
-  </form>
-  <span class="label"></span>
-  <canvas id="graph"></canvas>
-  <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
-  <script type="text/javascript" src="../build/grapher.js"></script>
-  <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
-  <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-target/master/target-min.js"></script>
-  <script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
-  <script type="text/javascript" src="./vendor/d3.js"></script>
-  <script type="text/javascript">
-  var responseResults,
-    nodeMap = {},
-    relMap = {},
-    width = window.innerWidth,
-    height = window.innerHeight,
-    nodeCount = 0,
-    graphNetwork = {
-      nodes: [],
-      links: []
-    };
-
-  var semanticTypes = ['anatomicalsystem', 'cancer', 'cell', 'cellularcomponent', 'chemical', 'condition', 'developinganatomicalstructure', 'enzyme', 'gene', 'geneprotein', 'immaterialanatomicalentity', 'multitissuestructure', 'organ', 'organismsubidivision', 'organismsubstance', 'pathologicalformation', 'polymer', 'protein', 'reaction', 'species', 'tissue'];
-
-  var types = {
-    anatomicalsystem: {
-      colour: '#A187BE'
-    },
-    cancer: {
-      colour: '#8882BE'
-    },
-    cell: {
-      colour: '#8493CA'
-    },
-    cellularcomponent: {
-      colour: '#7EA7D8'
-    },
-    chemical: {
-      colour: '#97F687'
-    },
-    condition: {
-      colour: '#CD4F57'
-    },
-    developinganatomicalstructure: {
-      colour: '#82CA9D'
-    },
-    enzyme: {
-      colour: '#A2D39C'
-    },
-    gene: {
-      colour: '#5174DF'
-    },
-    geneprotein: {
-      colour: '#4D7AFF'
-    },
-    immaterialanatomicalentity: {
-      colour: '#FDC68A'
-    },
-    multitissuestructure: {
-      colour: '#F9AD81'
-    },
-    organ: {
-      colour: '#9edae5'
-    },
-    organismsubidivision: {
-      colour: '#dbdb8d'
-    },
-    organismsubstance: {
-      colour: '#c7c7c7'
-    },
-    pathologicalformation: {
-      colour: '#f7b6d2'
-    },
-    polymer: {
-      colour: '#c49c94'
-    },
-    protein: {
-      colour: '#7EA6FF'
-    },
-    reaction: {
-      colour: '#98df8a'
-    },
-    species: {
-      colour: '#ffbb78'
-    },
-    tissue: {
-      colour: '#aec7e8'
-    }
+  <div class="tooltip"></div>
+</body>
+<form id="query" onsubmit="event.preventDefault(); return executeQuery();">
+  Extract entities of type:
+  <select id="type">
+    <option>anatomicalsystem</option>
+    <option>cancer</option>
+    <option>cell</option>
+    <option>cellularcomponent</option>
+    <option>chemical</option>
+    <option>condition</option>
+    <option>developinganatomicalstructure</option>
+    <option>enzyme</option>
+    <option>gene</option>
+    <option>geneprotein</option>
+    <option>immaterialanatomicalentity</option>
+    <option>multitissuestructure</option>
+    <option>organ</option>
+    <option>organismsubidivision</option>
+    <option>organismsubstance</option>
+    <option>pathologicalformation</option>
+    <option>polymer</option>
+    <option>protein</option>
+    <option>reaction</option>
+    <option>species</option>
+    <option>tissue</option>
+  </select>
+  <input id="textQuery" placeholder="from papers about..." /> Include:
+  <input type="checkbox" class="location" name="location" checked id="title" /> Title
+  <input type="checkbox" class="location" name="location" checked id="abstract" /> Abstract
+  <input type="checkbox" class="location" name="location" checked id="intro" /> Intro
+  <input type="checkbox" class="location" name="location" checked id="discussion" /> Discussion
+  <input type="checkbox" class="location" name="location" checked id="other" /> other
+  <br />
+  <button type="submit">Go</button>
+</form>
+<span class="label"></span>
+<canvas id="graph"></canvas>
+<script type="text/javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+<script type="text/javascript" src="../build/grapher.js"></script>
+<script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
+<script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-target/master/target-min.js"></script>
+<script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
+<script type="text/javascript" src="./vendor/d3.js"></script>
+<script type="text/javascript">
+var responseResults,
+  nodeMap = {},
+  relMap = {},
+  width = window.innerWidth,
+  height = window.innerHeight,
+  nodeCount = 0,
+  graphNetwork = {
+    nodes: [],
+    links: []
   };
 
-    var colours = [
-      '#aec7e8',
-      '#ffbb78',
-      '#98df8a',
-      '#ff9896',
-      '#c5b0d5',
-      '#c49c94',
-      '#f7b6d2',
-      '#c7c7c7',
-      '#dbdb8d',
-      '#9edae5',
-      '#F9AD81',
-      '#FDC68A',
-      '#FFF79A',
-      '#C4DF9B',
-      '#A2D39C',
-      '#82CA9D',
-      '#7BCDC8',
-      '#6ECFF6',
-      '#7EA7D8',
-      '#8493CA',
-      '#8882BE',
-      '#A187BE',
-      '#BC8DBF',
-      '#F49AC2',
-      '#F6989D',
-      '#F26C4F',
-      '#F68E55',
-      '#FBAF5C',
-      '#FFF467',
-      '#ACD372',
-      '#7CC576',
-      '#3BB878',
-      '#1ABBB4',
-      '#00BFF3',
-      '#438CCA',
-      '#5574B9',
-      '#605CA8',
-      '#855FA8',
-      '#A763A8',
-      '#F06EA9',
-      '#F26D7D',
-    ];
-  var theme = {
-    'Disease': {
-      colour: '#FF4F69',
-      size: 30
-    },
-    'Chemical': {
-      colour: '#65D35B',
-      size: 15
-    },
-    'Gene': {
-      colour: '#6693FF',
-      size: 25
-    },
-    'Chebi': {
-      colour: '#75FFB3',
-      size: 15
-    },
-    'GOTerm': {
-      colour: '#FFEDFA',
-      size: 10
-    },
-    'COTerm': {
-      colour: '#FFEAE1',
-      size: 10
-    },
-    'Pathway': {
-      colour: '#694AFF',
-      size: 50
-    }
-  };
+var paperMap = {};
+var entityMap = {};
 
+var semanticTypes = ['anatomicalsystem', 'cancer', 'cell', 'cellularcomponent', 'chemical', 'condition', 'developinganatomicalstructure', 'enzyme', 'gene', 'geneprotein', 'immaterialanatomicalentity', 'multitissuestructure', 'organ', 'organismsubidivision', 'organismsubstance', 'pathologicalformation', 'polymer', 'protein', 'reaction', 'species', 'tissue'];
+
+var types = {
+  anatomicalsystem: {
+    colour: '#A187BE'
+  },
+  cancer: {
+    colour: '#8882BE'
+  },
+  cell: {
+    colour: '#8493CA'
+  },
+  cellularcomponent: {
+    colour: '#7EA7D8'
+  },
+  chemical: {
+    colour: '#97F687'
+  },
+  condition: {
+    colour: '#CD4F57'
+  },
+  developinganatomicalstructure: {
+    colour: '#82CA9D'
+  },
+  enzyme: {
+    colour: '#A2D39C'
+  },
+  gene: {
+    colour: '#5174DF'
+  },
+  geneprotein: {
+    colour: '#4D7AFF'
+  },
+  immaterialanatomicalentity: {
+    colour: '#FDC68A'
+  },
+  multitissuestructure: {
+    colour: '#F9AD81'
+  },
+  organ: {
+    colour: '#9edae5'
+  },
+  organismsubidivision: {
+    colour: '#dbdb8d'
+  },
+  organismsubstance: {
+    colour: '#c7c7c7'
+  },
+  pathologicalformation: {
+    colour: '#f7b6d2'
+  },
+  polymer: {
+    colour: '#c49c94'
+  },
+  protein: {
+    colour: '#7EA6FF'
+  },
+  reaction: {
+    colour: '#98df8a'
+  },
+  species: {
+    colour: '#ffbb78'
+  },
+  tissue: {
+    colour: '#aec7e8'
+  }
+};
+
+var colours = [
+  '#aec7e8',
+  '#ffbb78',
+  '#98df8a',
+  '#ff9896',
+  '#c5b0d5',
+  '#c49c94',
+  '#f7b6d2',
+  '#c7c7c7',
+  '#dbdb8d',
+  '#9edae5',
+  '#F9AD81',
+  '#FDC68A',
+  '#FFF79A',
+  '#C4DF9B',
+  '#A2D39C',
+  '#82CA9D',
+  '#7BCDC8',
+  '#6ECFF6',
+  '#7EA7D8',
+  '#8493CA',
+  '#8882BE',
+  '#A187BE',
+  '#BC8DBF',
+  '#F49AC2',
+  '#F6989D',
+  '#F26C4F',
+  '#F68E55',
+  '#FBAF5C',
+  '#FFF467',
+  '#ACD372',
+  '#7CC576',
+  '#3BB878',
+  '#1ABBB4',
+  '#00BFF3',
+  '#438CCA',
+  '#5574B9',
+  '#605CA8',
+  '#855FA8',
+  '#A763A8',
+  '#F06EA9',
+  '#F26D7D',
+];
+var theme = {
+  'Disease': {
+    colour: '#FF4F69',
+    size: 30
+  },
+  'Chemical': {
+    colour: '#65D35B',
+    size: 15
+  },
+  'Gene': {
+    colour: '#6693FF',
+    size: 25
+  },
+  'Chebi': {
+    colour: '#75FFB3',
+    size: 15
+  },
+  'GOTerm': {
+    colour: '#FFEDFA',
+    size: 10
+  },
+  'COTerm': {
+    colour: '#FFEAE1',
+    size: 10
+  },
+  'Pathway': {
+    colour: '#694AFF',
+    size: 50
+  }
+};
+
+d3.select('#loading').style('display', 'none');
+d3.select('#status').style('display', 'none');
+d3.select('#center').on('click', function() {
+  grapher.center([Math.floor(Math.random() * graphNetwork.nodes.length)]);
+  grapher.render();
+});
+d3.select('#run').on('click', function() {
+  force.start();
+  grapher.play();
+  d3.select('#status').style('display', 'block');
+});
+d3.select('#pause').on('click', function() {
+  force.stop();
+  grapher.pause();
   d3.select('#status').style('display', 'none');
-  d3.select('#center').on('click', function() {
-    grapher.center([Math.floor(Math.random() * graphNetwork.nodes.length)]);
-    grapher.render();
-  });
-  d3.select('#run').on('click', function() {
-    force.start();
-    grapher.play();
-    d3.select('#status').style('display', 'block');
-  });
-  d3.select('#pause').on('click', function() {
-    force.stop();
-    grapher.pause();
-    d3.select('#status').style('display', 'none');
-  });
+});
 
-  var executeQuery = function() {
+var executeQuery = function() {
 
-    var checkedValues = [];
-    var inputElements = document.getElementsByClassName('location');
-    for (var i = 0; inputElements[i]; ++i) {
-      if (inputElements[i].checked) {
-        checkedValues.push(inputElements[i].id);
-      }
+  var checkedValues = [];
+  var inputElements = document.getElementsByClassName('location');
+  for (var i = 0; inputElements[i]; ++i) {
+    if (inputElements[i].checked) {
+      checkedValues.push(inputElements[i].id);
     }
-    if (inputElements.length === checkedValues.length) {
-      checkedValues = 'all';
+  }
+  if (inputElements.length === checkedValues.length) {
+    checkedValues = 'all';
+  } else {
+    checkedValues = checkedValues.join(',');
+  }
+  console.log('Paper sections: '+checkedValues);
+
+  d3.select('#loading').style('display', 'block');
+
+
+  var query = document.getElementById("textQuery").value.toLowerCase();
+  function isAGoodEntity(entity) {
+    // console.log(entity.toLowerCase(), query.toLowerCase(), entity.toLowerCase().indexOf(query.toLowerCase()));
+    if(entity.length > 2 && entity.toLowerCase().indexOf(query.toLowerCase()) === -1) {
+      return true;
     } else {
-      checkedValues = checkedValues.join(',');
+      // console.log('Bad entity: '+ entity);
+      return false;
     }
-    console.log(checkedValues);
+  }
 
-    d3.select('#status').style('display', 'block');
+  function transformPaperHighlightsToNetwork(papers) {
 
-    var paperMap = {};
-    var entityMap = {};
-    // var nodes = [], edges = [];
-    $.getJSON('lrp1_geneprotein_10.json', function(data) {
-      var papers = data.articleList;
-      var network = prepareData(papers);
-      createGraph(network);
-    });
-
-    var nodeCounter = 0;
-    function prepareData(papers) {
-
-      for (var i = papers.length - 1; i >= 0; i--) {
-        paperMap[papers[i].beaconId] = [];
-        $.each(papers[i].highlightPositions, function(section, highlights) {
-          for (var j = highlights.length - 1; j >= 0; j--) {
-            if(highlights[j].clz !== 'highlight') {
+    for (var i = papers.length - 1; i >= 0; i--) {
+      paperMap[papers[i].beaconId] = [];
+      $.each(papers[i].highlightPositions, function(section, highlights) {
+        for (var j = highlights.length - 1; j >= 0; j--) {
+          if (highlights[j].clz !== 'highlight') {
+            if(isAGoodEntity(highlights[j].highlightedText)) {
               if (!entityMap[highlights[j].highlightedText]) {
                 entityMap[highlights[j].highlightedText] = {
                   count: 0,
                   papers: [],
-                  nodeIndex: nodeCounter++,
                   type: highlights[j].clz
                 };
                 paperMap[papers[i].beaconId].push(highlights[j].highlightedText);
               }
 
-              if(entityMap[highlights[j].highlightedText].papers.indexOf(papers[i].beaconId) < 0) {
+              if (entityMap[highlights[j].highlightedText].papers.indexOf(papers[i].beaconId) < 0) {
                 entityMap[highlights[j].highlightedText].papers.push(papers[i].beaconId);
               }
 
               entityMap[highlights[j].highlightedText].count++;
-            } else {
-              // console.log('Found highlight:', highlights[j]);
             }
+          } else {
+            // console.log('Found highlight:', highlights[j]);
           }
-        });
-      };
+        }
+      });
+    };
 
-      // console.log(paperMap);
-      // console.log(entityMap);
+    // console.log(entityMap);
 
-      $.each(entityMap, function(key, val) {
+    // entityMap = _.filter(entityMap, function(entity) {
+    //   return entity.papers.length > 1
+    // });
+
+    entityMap = _.pick(entityMap, function(value, key, object) {
+      return value.papers.length > 1;
+    });
+
+    // console.log(paperMap);
+    // console.log(entityMap);
+
+    var nodeCounter = 0;
+    $.each(entityMap, function(key, val) {
+        // console.log('Entity appears in '+val.papers.length+' papers');
         graphNetwork.nodes.push({
           x: Math.random() * width,
           y: Math.random() * height,
-          r: val.count,
+          r: val.papers.length,
           weight: 1,
           color: types[val.type].colour || '#000000',
-          nodeIndex: val.nodeIndex,
+          nodeIndex: nodeCounter,
           properties: {
             label: val.type,
             name: key,
-            id: 'id-' + val.nodeIndex
+            id: 'id-' + nodeCounter,
+            papers: val.papers.length
           }
         });
-      });
-      // console.log('nodes', graphNetwork.nodes);
+        val.nodeIndex = nodeCounter++;
+    });
+    // console.log('nodes', graphNetwork.nodes);
 
-      var entities, from, to;
-      $.each(paperMap, function(key, val) {
-        entities = val;
-        // console.log(key, ':', entities);
-        for (var i = 0; i < entities.length; i++) {
+    var entities, from, to;
+    $.each(paperMap, function(key, val) {
+      entities = val;
+      // console.log(key, ':', entities);
+      for (var i = 0; i < entities.length; i++) {
+        if(entityMap[entities[i]]) {
           from = entityMap[entities[i]].nodeIndex;
-          for (var j = i+1; j < entities.length; j++) {
-            to = entityMap[entities[j]].nodeIndex;
-            graphNetwork.links.push({
-              from: from,
-              to: to,
-              source: graphNetwork.nodes[from],
-              target: graphNetwork.nodes[to],
-              color: '#eeeeee' //graphNetwork.nodes[from].color
-            });
-          };
-        };
-        // console.log('links', graphNetwork.links);
-      });
-
-      return graphNetwork;
-    }
-
-    // d3
-    //   .json('http://controller01:5077/api/search')
-    //   .header("Content-Type", "application/json")
-    //   .post(JSON.stringify({
-    //       "searchQuery": document.getElementById("textQuery").value + " ["+document.getElementById("type").value+"]",
-    //       "sortBy": "",
-    //       "sortDirection": "",
-    //       "resultsPerPage": 10,
-    //       "savedSearch": false,
-    //       "updatedDate": 0,
-    //       "createdDate": 0,
-    //       "searchId": "",
-    //       "parentId": "",
-    //       "emailNotification": false,
-    //       "searchName": "",
-    //       "pageNumber": 0,
-    //       "skipSearchAudit": true,
-    //       "highlightFields": checkedValues
-    //     }), function(msg, data) {
-    //     var papers = data.articleList;
-    //     for (var i = papers.length - 1; i >= 0; i--) {
-    //       papers[i]
-    //     };
-    //     createGraph(prepareData(responseResults));
-    //   });
-
-    // $.ajax({
-    //   type: 'POST',
-    //   beforeSend: function (request) {
-    //       request.setRequestHeader('Content-Type', 'application/json');
-    //       request.setRequestHeader('Accept', 'application/json');
-    //       request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-    //   },
-    //   url: 'http://controller01:5077/api/search',
-    //   dataType: 'json',
-    //   data: {
-    //     "searchQuery": "lrp1",
-    //     "sortBy": "",
-    //     "sortDirection": "",
-    //     "resultsPerPage": 10,
-    //     "savedSearch": false,
-    //     "updatedDate": 0,
-    //     "createdDate": 0,
-    //     "searchId": "",
-    //     "parentId": "",
-    //     "emailNotification": false,
-    //     "searchName": "",
-    //     "pageNumber": 0,
-    //     "skipSearchAudit": true,
-    //     "highlightFields": ""
-    //   },
-    //   success: function(data) {
-    //     console.log(data);
-    //   },
-    //   error: function() {
-
-    //   }
-    // });
-
-
-
-    // d3
-    //   .json('lrp1_geneprotein.json', function(error, json) {
-    //     console.log(json);
-    //     var papers = JSON.parse(json);
-    //     console.log(papers);
-    //     for (var i = papers.length - 1; i >= 0; i--) {
-    //       papers[i]
-    //     };
-    //     //createGraph(prepareData(responseResults));
-    //   });
-    return false;
-  };
-
-  var loadNodesConnections = function(id) {
-    d3.select('#status').style('display', 'block');
-    d3
-      .json('http://controller02:7574/db/data/transaction/commit')
-      .header("Content-Type", "application/json")
-      .post(JSON.stringify({
-        "statements": [{
-          "statement": 'start n=node(' + id + ') match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 500',
-          "resultDataContents": ["row", "graph"],
-          "includeStats": true
-        }]
-      }), function(msg, data) {
-        responseResults = responseResults.concat(data.results[0].data);
-        createGraph(prepareData(responseResults));
-      });
-    return false;
-  };
-
-  var clearGraph = function() {
-    var grapher = window.grapher;
-    grapher.data({
-      nodes: [],
-      links: []
-    }).update().render();
-    var gl = grapher._getWebGL();
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  };
-
-  var prepareData = function(relationships) {
-
-    for (var i = relationships.length - 1; i >= 0; i--) {
-
-      var graph = relationships[i].graph;
-
-      for (var j = relationships[i].graph.nodes.length - 1; j >= 0; j--) {
-        var node = relationships[i].graph.nodes[j];
-        if (!nodeMap[node.id]) {
-          var label = node.labels[0];
-          nodeMap[node.id] = {
-            x: Math.random() * width,
-            y: Math.random() * height,
-            r: theme[label].size,
-            weight: 1,
-            color: theme[label].colour,
-            grapherIndex: nodeCount,
-            properties: {
-              label: label,
-              name: node.properties.name,
-              id: node.id
+          for (var j = i + 1; j < entities.length; j++) {
+            if(entityMap[entities[j]]) {
+              to = entityMap[entities[j]].nodeIndex;
+              // console.log('from: ',entityMap[entities[i]], 'to: ', entityMap[entities[j]]);
+              graphNetwork.links.push({
+                from: from,
+                to: to,
+                source: graphNetwork.nodes[from],
+                target: graphNetwork.nodes[to],
+                color: '#eeeeee' //graphNetwork.nodes[from].color
+              });
             }
           };
-          nodeCount++;
-          graphNetwork.nodes.push(nodeMap[node.id]);
         }
-      }
+      };
+      // console.log('links', graphNetwork.links);
+    });
 
-      for (var j = relationships[i].graph.relationships.length - 1; j >= 0; j--) {
-        var rel = relationships[i].graph.relationships[j];
-        if (!relMap[rel.id]) {
-          relMap[rel.id] = rel;
-          var from = nodeMap[relMap[rel.id].startNode].grapherIndex,
-            to = nodeMap[relMap[rel.id].endNode].grapherIndex;
-          graphNetwork.links.push({
-            from: from,
-            to: to,
-            source: graphNetwork.nodes[from],
-            target: graphNetwork.nodes[to],
-            color: '#eeeeee' //graphNetwork.nodes[from].color
-          });
-        }
+    return graphNetwork;
+  }
+
+  var nodes = [], edges = [];
+  //$.getJSON('lrp1_geneprotein_10.json', function(data) {
+  $.getJSON('lrp1_geneprotein_229.json', function(data) {
+    d3.select('#loading').style('display', 'none');
+    var papers = data.articleList;
+    var network = transformPaperHighlightsToNetwork(papers);
+    createGraph(network);
+  });
+
+  // d3
+  //   .json('http://controller01:5077/api/search')
+  //   .header("Content-Type", "application/json")
+  //   .post(JSON.stringify({
+  //       "searchQuery": document.getElementById("textQuery").value + " ["+document.getElementById("type").value+"]",
+  //       "sortBy": "",
+  //       "sortDirection": "",
+  //       "resultsPerPage": 10,
+  //       "savedSearch": false,
+  //       "updatedDate": 0,
+  //       "createdDate": 0,
+  //       "searchId": "",
+  //       "parentId": "",
+  //       "emailNotification": false,
+  //       "searchName": "",
+  //       "pageNumber": 0,
+  //       "skipSearchAudit": true,
+  //       "highlightFields": checkedValues
+  //     }), function(msg, data) {
+  //     var papers = data.articleList;
+  //     for (var i = papers.length - 1; i >= 0; i--) {
+  //       papers[i]
+  //     };
+  //     createGraph(transformPaperHighlightsToNetwork(responseResults));
+  //   });
+
+  // $.ajax({
+  //   type: 'POST',
+  //   beforeSend: function (request) {
+  //       request.setRequestHeader('Content-Type', 'application/json');
+  //       request.setRequestHeader('Accept', 'application/json');
+  //       request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  //   },
+  //   url: 'http://controller01:5077/api/search',
+  //   dataType: 'json',
+  //   data: {
+  //     "searchQuery": "lrp1",
+  //     "sortBy": "",
+  //     "sortDirection": "",
+  //     "resultsPerPage": 10,
+  //     "savedSearch": false,
+  //     "updatedDate": 0,
+  //     "createdDate": 0,
+  //     "searchId": "",
+  //     "parentId": "",
+  //     "emailNotification": false,
+  //     "searchName": "",
+  //     "pageNumber": 0,
+  //     "skipSearchAudit": true,
+  //     "highlightFields": ""
+  //   },
+  //   success: function(data) {
+  //     d3.select('#loading').style('display', 'none');
+  //     var papers = data.articleList;
+  //     var network = transformPaperHighlightsToNetwork(papers);
+  //     createGraph(network);
+  //   },
+  //   error: function() {
+
+  //   }
+  // });
+
+
+
+  // d3
+  //   .json('lrp1_geneprotein.json', function(error, json) {
+  //     console.log(json);
+  //     var papers = JSON.parse(json);
+  //     console.log(papers);
+  //     for (var i = papers.length - 1; i >= 0; i--) {
+  //       papers[i]
+  //     };
+  //     //createGraph(transformPaperHighlightsToNetwork(responseResults));
+  //   });
+  return false;
+};
+
+var loadNodesConnections = function(id) {
+  d3.select('#status').style('display', 'block');
+  d3
+    .json('http://controller02:7574/db/data/transaction/commit')
+    .header("Content-Type", "application/json")
+    .post(JSON.stringify({
+      "statements": [{
+        "statement": 'start n=node(' + id + ') match p=shortestPath((n)-[*..5]-(o)) return distinct p limit 500',
+        "resultDataContents": ["row", "graph"],
+        "includeStats": true
+      }]
+    }), function(msg, data) {
+      responseResults = responseResults.concat(data.results[0].data);
+      createGraph(prepareData(responseResults));
+    });
+  return false;
+};
+
+var clearGraph = function() {
+  var grapher = window.grapher;
+  grapher.data({
+    nodes: [],
+    links: []
+  }).update().render();
+  var gl = grapher._getWebGL();
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+};
+
+var prepareData = function(relationships) {
+
+  for (var i = relationships.length - 1; i >= 0; i--) {
+
+    var graph = relationships[i].graph;
+
+    for (var j = relationships[i].graph.nodes.length - 1; j >= 0; j--) {
+      var node = relationships[i].graph.nodes[j];
+      if (!nodeMap[node.id]) {
+        var label = node.labels[0];
+        nodeMap[node.id] = {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: theme[label].size,
+          weight: 1,
+          color: theme[label].colour,
+          grapherIndex: nodeCount,
+          properties: {
+            label: label,
+            name: node.properties.name,
+            id: node.id
+          }
+        };
+        nodeCount++;
+        graphNetwork.nodes.push(nodeMap[node.id]);
       }
     }
-    console.log('graphNetwork', graphNetwork);
-    console.log('nodeCount', nodeCount);
-    return graphNetwork;
-  };
 
-  var createGraph = function(network) {
+    for (var j = relationships[i].graph.relationships.length - 1; j >= 0; j--) {
+      var rel = relationships[i].graph.relationships[j];
+      if (!relMap[rel.id]) {
+        relMap[rel.id] = rel;
+        var from = nodeMap[relMap[rel.id].startNode].grapherIndex,
+          to = nodeMap[relMap[rel.id].endNode].grapherIndex;
+        graphNetwork.links.push({
+          from: from,
+          to: to,
+          source: graphNetwork.nodes[from],
+          target: graphNetwork.nodes[to],
+          color: '#eeeeee' //graphNetwork.nodes[from].color
+        });
+      }
+    }
+  }
+  console.log('graphNetwork', graphNetwork);
+  console.log('nodeCount', nodeCount);
+  return graphNetwork;
+};
 
-    console.log('creating graph', network);
-    var grapher;
+var createGraph = function(network) {
 
-    if (window.grapher) {
-      // re-render with new data
-      clearGraph();
-      grapher = window.grapher;
-      grapher.data(network).update().render();
-      // onTick gets called on each tick of D3's force
-      var onTick = function() {
-        if (dragging && offset) {
-          // update the node's position here so it's sticky
-          dragging.node.x = offset.x;
-          dragging.node.y = offset.y;
-        }
-        // force.alpha(1);
-        grapher.update(); // update the grapher
-      };
+  console.log('creating graph', network);
+  d3.select('#status').style('display', 'block');
+  var grapher;
 
-      // Setup D3's force layout
-      var force = window.force;
-      // var nodes = [], links = [];
-      // force.nodes(nodes).links(links);
-      force.nodes(network.nodes).links(network.links);
-      force
+  if (window.grapher) {
+    // re-render with new data
+    clearGraph();
+    grapher = window.grapher;
+    grapher.data(network).update().render();
+    // onTick gets called on each tick of D3's force
+    var onTick = function() {
+      if (dragging && offset) {
+        // update the node's position here so it's sticky
+        dragging.node.x = offset.x;
+        dragging.node.y = offset.y;
+      }
+      // force.alpha(1);
+      grapher.update(); // update the grapher
+    };
+
+    // Setup D3's force layout
+    var force = window.force;
+    // var nodes = [], links = [];
+    // force.nodes(nodes).links(links);
+    force.nodes(network.nodes).links(network.links);
+    force
       .size([width, height])
       .on('tick', onTick)
       .charge(-5000)
@@ -624,191 +690,194 @@ anatomicalsystem,cancer,cell,cellularcomponent,chemical,condition,developinganat
       .linkDistance(100)
       .friction(0.02)
       .start();
-      // grapher.play();
+    // grapher.play();
 
-    } else {
-      // Create a grapher instance (width, height, options)
-      grapher = new Grapher({
-        data: network,
-        canvas: document.getElementById('graph')
-      });
+  } else {
+    // Create a grapher instance (width, height, options)
+    grapher = new Grapher({
+      data: network,
+      canvas: document.getElementById('graph')
+    });
 
 
-      // Helper function for offsets.
-      function getOffset(e) {
-        if (e.offsetX) return {
-          x: e.offsetX,
-          y: e.offsetY
+    // Helper function for offsets.
+    function getOffset(e) {
+      if (e.offsetX) return {
+        x: e.offsetX,
+        y: e.offsetY
+      };
+      var rect = e.target.getBoundingClientRect();
+      var x = e.clientX - rect.left,
+        y = e.clientY - rect.top;
+      return {
+        x: x,
+        y: y
+      };
+    }
+
+    // Variable to keep track of the node we're dragging and the current offset
+    var dragging = null,
+      offset = null,
+      panning = null,
+      mouseDown = false,
+      mouseDownPoint,
+      mouseDownDataPoint,
+      hoveredNode = null;
+
+    function onMouseDown(e) {
+      mouseDownPoint = getOffset(e);
+      mouseDownDataPoint = grapher.getDataPosition(mouseDownPoint);
+      mouseDown = true;
+      var nodeId = grapher.target(mouseDownDataPoint);
+      if (nodeId > -1) {
+        dragging = {
+          node: network.nodes[nodeId],
+          id: nodeId
         };
-        var rect = e.target.getBoundingClientRect();
-        var x = e.clientX - rect.left,
-          y = e.clientY - rect.top;
-        return {
-          x: x,
-          y: y
-        };
-      }
-
-      // Variable to keep track of the node we're dragging and the current offset
-      var dragging = null,
-        offset = null,
-        panning = null,
-        mouseDown = false,
-        mouseDownPoint,
-        mouseDownDataPoint,
-        hoveredNode = null;
-
-      function onMouseDown(e) {
+        offset = mouseDownDataPoint;
+      } else {
         mouseDownPoint = getOffset(e);
-        mouseDownDataPoint = grapher.getDataPosition(mouseDownPoint);
-        mouseDown = true;
-        var nodeId = grapher.target(mouseDownDataPoint);
-        if (nodeId > -1) {
-          dragging = {
-            node: network.nodes[nodeId],
-            id: nodeId
-          };
-          offset = mouseDownDataPoint;
-        } else {
-          mouseDownPoint = getOffset(e);
-          panning = true;
-          dragging = offset = null;
-        }
-        grapher.render();
+        panning = true;
+        dragging = offset = null;
       }
+      grapher.render();
+    }
 
-      function onMouseMove(e) {
+    function onMouseMove(e) {
 
-        var eOffset = getOffset(e);
-        var point = grapher.getDataPosition(eOffset);
-        var nodeId = grapher.target(point);
+      var eOffset = getOffset(e);
+      var point = grapher.getDataPosition(eOffset);
+      var nodeId = grapher.target(point);
 
-        if (!mouseDown) {
-          if (nodeId > -1) {
-            hoveredNode = network.nodes[nodeId];
-            if (hoveredNode && !hoveredNode.oldColor) {
-              document.body.style.cursor = 'pointer';
-              hoveredNode.oldColor = hoveredNode.color;
-              hoveredNode.color = '#eeeeee';
-              grapher.render();
-              grapher.update();
-            }
-          } else if (hoveredNode) {
-            document.body.style.cursor = 'auto';
-            hoveredNode.color = hoveredNode.oldColor;
-            delete hoveredNode.oldColor;
-            hoveredNode = null;
-            grapher.render();
-            grapher.update();
-          } else {
+      if (!mouseDown) {
+        if (nodeId > -1) {
+          hoveredNode = network.nodes[nodeId];
+          if (hoveredNode && !hoveredNode.oldColor) {
+            document.body.style.cursor = 'pointer';
+            //hoveredNode.oldColor = hoveredNode.color;
+            //hoveredNode.color = '#eeeeee';
+            var html = '<span class="type" style="color:'+hoveredNode.color+'">Type: ' + hoveredNode.properties.label + '</span><span class="name">Name: ' + hoveredNode.properties.name + '</span><span class="count">Papers: ' + hoveredNode.properties.papers + '</span>';
+            $('div.tooltip').html(html).show();
             grapher.render();
             grapher.update();
           }
-        }
-
-        if (dragging) {
-          offset = point;
-          // force.alpha(1);
+        } else if (hoveredNode) {
+          document.body.style.cursor = 'auto';
+          //hoveredNode.color = hoveredNode.oldColor;
+          //delete hoveredNode.oldColor;
+          $('div.tooltip').hide();
+          hoveredNode = null;
           grapher.render();
-        } else if (panning) {
-          var translate = grapher.translate(),
-            dragOffset = getOffset(e);
-          translate[0] += (dragOffset.x - mouseDownPoint.x);
-          translate[1] += (dragOffset.y - mouseDownPoint.y);
-          mouseDownPoint = dragOffset;
-          grapher.translate(translate);
-          grapher.render();
-        }
-      }
-
-      var clicks = 0;
-
-      function onMouseUp(e) {
-        clicks++;
-        mouseDown = false;
-        if (dragging) {
-          dragging.node.fixed = true;
-          dragging = offset = null;
+          grapher.update();
         } else {
-          panning = null;
+          grapher.render();
+          grapher.update();
         }
-
-        if (hoveredNode) {
-          // if(hoveredNode.fixed) {
-          //   hoveredNode.fixed = false;
-          // }
-          setTimeout(function() {
-            if (clicks === 2) {
-              loadNodesConnections(hoveredNode.properties.id);
-            }
-            clicks = 0;
-          }, 300);
-          // console.log('clicked node', hoveredNode.properties.name);
-          //
-        }
-        mouseDownPoint = null;
       }
 
-      function onMouseScroll(e) {
-        var center = getOffset(e);
-        var delta = e.deltaY / 2000;
-        // Call zoom with the ratio and center.
-        grapher.zoom(1 - delta, center);
-        // Render the graph
+      if (dragging) {
+        offset = point;
+        // force.alpha(1);
+        grapher.render();
+      } else if (panning) {
+        var translate = grapher.translate(),
+          dragOffset = getOffset(e);
+        translate[0] += (dragOffset.x - mouseDownPoint.x);
+        translate[1] += (dragOffset.y - mouseDownPoint.y);
+        mouseDownPoint = dragOffset;
+        grapher.translate(translate);
         grapher.render();
       }
-
-      // // On mousedown, grab the node that was clicked.
-      // grapher.off('mousedown', onMouseDown);
-      // grapher.off('mousemove', onMouseMove);
-      // grapher.off('mouseup', onMouseUp);
-      // grapher.off('wheel', onMouseScroll);
-
-      grapher.on('mousedown', onMouseDown);
-      grapher.on('mousemove', onMouseMove);
-      grapher.on('mouseup', onMouseUp);
-      grapher.on('wheel', onMouseScroll);
-
-
-
-      // onTick gets called on each tick of D3's force
-      var onTick = function() {
-        if (dragging && offset) {
-          // update the node's position here so it's sticky
-          dragging.node.x = offset.x;
-          dragging.node.y = offset.y;
-        }
-        // force.alpha(1);
-        grapher.update(); // update the grapher
-      };
-
-      // Setup D3's force layout
-      var force = d3.layout.force()
-        .nodes(network.nodes)
-        .links(network.links)
-        .size([width, height])
-        .on('tick', onTick)
-        .charge(-5000)
-        .gravity(0.005)
-        .linkStrength(0.2)
-        .linkDistance(100)
-        .friction(0.01)
-        .start();
-
-      window.force = force;
-
-      // Append the grapher's view onto the page
-      document.body.appendChild(grapher.canvas);
-
-      // Render the graph using play. This will call render in a requestAnimationFrame loop.
-      grapher.play();
-      // grapher.render();
-      window.grapher = grapher;
     }
 
-    return false;
-  };
-  </script>
+    var clicks = 0;
+
+    function onMouseUp(e) {
+      clicks++;
+      mouseDown = false;
+      if (dragging) {
+        dragging.node.fixed = true;
+        dragging = offset = null;
+      } else {
+        panning = null;
+      }
+
+      if (hoveredNode) {
+        // if(hoveredNode.fixed) {
+        //   hoveredNode.fixed = false;
+        // }
+        setTimeout(function() {
+          if (clicks === 2) {
+            loadNodesConnections(hoveredNode.properties.id);
+          }
+          clicks = 0;
+        }, 300);
+        // console.log('clicked node', hoveredNode.properties.name);
+        //
+      }
+      mouseDownPoint = null;
+    }
+
+    function onMouseScroll(e) {
+      var center = getOffset(e);
+      var delta = e.deltaY / 2000;
+      // Call zoom with the ratio and center.
+      grapher.zoom(1 - delta, center);
+      // Render the graph
+      grapher.render();
+    }
+
+    // // On mousedown, grab the node that was clicked.
+    // grapher.off('mousedown', onMouseDown);
+    // grapher.off('mousemove', onMouseMove);
+    // grapher.off('mouseup', onMouseUp);
+    // grapher.off('wheel', onMouseScroll);
+
+    grapher.on('mousedown', onMouseDown);
+    grapher.on('mousemove', onMouseMove);
+    grapher.on('mouseup', onMouseUp);
+    grapher.on('wheel', onMouseScroll);
+
+
+
+    // onTick gets called on each tick of D3's force
+    var onTick = function() {
+      if (dragging && offset) {
+        // update the node's position here so it's sticky
+        dragging.node.x = offset.x;
+        dragging.node.y = offset.y;
+      }
+      // force.alpha(1);
+      grapher.update(); // update the grapher
+    };
+
+    // Setup D3's force layout
+    var force = d3.layout.force()
+      .nodes(network.nodes)
+      .links(network.links)
+      .size([width, height])
+      .on('tick', onTick)
+      .charge(-5000)
+      .gravity(0.005)
+      .linkStrength(0.2)
+      .linkDistance(100)
+      .friction(0.01)
+      .start();
+
+    window.force = force;
+
+    // Append the grapher's view onto the page
+    document.body.appendChild(grapher.canvas);
+
+    // Render the graph using play. This will call render in a requestAnimationFrame loop.
+    grapher.play();
+    // grapher.render();
+    window.grapher = grapher;
+  }
+
+  return false;
+};
+</script>
 </body>
 
 </html>

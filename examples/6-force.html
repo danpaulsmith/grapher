@@ -61,10 +61,12 @@ canvas {
 }
 
 div.tooltip {
+  background-color: #FFFFFF;
+  padding: 10px;
   position: fixed;
   display: none;
   left: 25px;
-  bottom: 25px;
+  bottom: 100px;
 }
 div.tooltip span {
   display: block;
@@ -191,9 +193,9 @@ anatomicalsystem,cancer,cell,cellularcomponent,chemical,condition,developinganat
 <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script type="text/javascript" src="../build/grapher.js"></script>
-<script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-center/master/center-min.js"></script>
-<script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-target/master/target-min.js"></script>
-<script type="text/javascript" src="https://raw.githubusercontent.com/ayasdi/grapher-zoom/master/zoom-min.js"></script>
+<script type="text/javascript" src="center-min.js"></script>
+<script type="text/javascript" src="target-min.js"></script>
+<script type="text/javascript" src="zoom-min.js"></script>
 <script type="text/javascript" src="./vendor/d3.js"></script>
 <script type="text/javascript">
 var responseResults,
@@ -456,7 +458,8 @@ var executeQuery = function() {
             label: val.type,
             name: key,
             id: 'id-' + nodeCounter,
-            papers: val.papers.length
+            papers: val.papers.length,
+            paperIDs: val.papers
           }
         });
         val.nodeIndex = nodeCounter++;
@@ -479,7 +482,7 @@ var executeQuery = function() {
                 to: to,
                 source: graphNetwork.nodes[from],
                 target: graphNetwork.nodes[to],
-                color: '#eeeeee' //graphNetwork.nodes[from].color
+                color: '#'+key.replace('pubmed-','').substring(0, 6) //graphNetwork.nodes[from].color
               });
             }
           };
@@ -492,7 +495,7 @@ var executeQuery = function() {
   }
 
   var nodes = [], edges = [];
-  //$.getJSON('lrp1_geneprotein_10.json', function(data) {
+  // $.getJSON('lrp1_geneprotein_10.json', function(data) {
   $.getJSON('lrp1_geneprotein_229.json', function(data) {
     d3.select('#loading').style('display', 'none');
     var papers = data.articleList;
@@ -857,7 +860,7 @@ var createGraph = function(network) {
       .links(network.links)
       .size([width, height])
       .on('tick', onTick)
-      .charge(-5000)
+      .charge(-1000)
       .gravity(0.005)
       .linkStrength(0.2)
       .linkDistance(100)

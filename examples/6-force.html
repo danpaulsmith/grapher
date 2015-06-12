@@ -496,7 +496,8 @@ var executeQuery = function() {
 
   var nodes = [], edges = [];
   // $.getJSON('lrp1_geneprotein_10.json', function(data) {
-  $.getJSON('lrp1_geneprotein_229.json', function(data) {
+  // $.getJSON('lrp1_geneprotein_229.json', function(data) {
+  $.getJSON('alzheimers_parkinsons_500.json', function(data) {
     d3.select('#loading').style('display', 'none');
     var papers = data.articleList;
     var network = transformPaperHighlightsToNetwork(papers);
@@ -522,22 +523,20 @@ var executeQuery = function() {
   //       "skipSearchAudit": true,
   //       "highlightFields": checkedValues
   //     }), function(msg, data) {
-  //     var papers = data.articleList;
-  //     for (var i = papers.length - 1; i >= 0; i--) {
-  //       papers[i]
-  //     };
-  //     createGraph(transformPaperHighlightsToNetwork(responseResults));
+  //       d3.select('#loading').style('display', 'none');
+  //       var papers = data.articleList;
+  //       var network = transformPaperHighlightsToNetwork(papers);
+  //       createGraph(network);
   //   });
 
   // $.ajax({
-  //   type: 'POST',
-  //   beforeSend: function (request) {
-  //       request.setRequestHeader('Content-Type', 'application/json');
-  //       request.setRequestHeader('Accept', 'application/json');
-  //       request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-  //   },
+  //   method: 'POST',
+  //   // beforeSend: function (request) {
+  //   //     request.setRequestHeader('Content-Type', 'application/json');
+  //   //     request.setRequestHeader('Accept', 'application/json');
+  //   //     // request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  //   // },
   //   url: 'http://controller01:5077/api/search',
-  //   dataType: 'json',
   //   data: {
   //     "searchQuery": "lrp1",
   //     "sortBy": "",

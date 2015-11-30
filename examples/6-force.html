@@ -190,7 +190,7 @@ canvas {
   var executeQuery = function() {
     d3.select('#status').style('display', 'block');
     d3
-      .json('http://controller02:7574/db/data/transaction/commit')
+      .json('http://localhost:7474/db/data/transaction/commit')
       .header("Content-Type", "application/json")
       .post(JSON.stringify({
         "statements": [{
@@ -208,7 +208,7 @@ canvas {
   var loadNodesConnections = function(id) {
     d3.select('#status').style('display', 'block');
     d3
-      .json('http://controller02:7574/db/data/transaction/commit')
+      .json('http://localhost:7474/db/data/transaction/commit')
       .header("Content-Type", "application/json")
       .post(JSON.stringify({
         "statements": [{
